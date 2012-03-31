@@ -76,6 +76,43 @@ static const wchar_t WORD_BREAK_CHARS[] = {
 #define SELECT_GetScrn(x,y) \
 	(gScreen + CSI_WndCols(gCSI) * (y - gCSI->srWindow.Top) + x)
 
+BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
+				      COORD size, COORD pos, SMALL_RECT *sr)
+{
+	if(!ReadConsoleOutputA(con, buffer, size, pos, sr))
+		return(FALSE);
+
+	CHAR_INFO* s = buffer;
+	CHAR_INFO* e = buffer + (size.X * size.Y);
+	DWORD	codepage = GetConsoleOutputCP();
+	BYTE	ch[2];
+	WCHAR	wch;
+
+	while(s < e) {
+		ch[0] = s->Char.AsciiChar;
+
+		if(s->Attributes & COMMON_LVB_LEADING_BYTE) {
+			if((s+1) < e && ((s+1)->Attributes & COMMON_LVB_TRAILING_BYTE)) {
+				ch[1] = (s+1)->Char.AsciiChar;
+				if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 2, &wch, 1)) {
+					s->Char.UnicodeChar = wch;
+					s++;
+					s->Char.UnicodeChar = wch;
+					s++;
+					continue;
+				}
+			}
+		}
+
+		if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 1, &wch, 1)) {
+			s->Char.UnicodeChar = wch;
+		}
+		s->Attributes &= ~(COMMON_LVB_LEADING_BYTE | COMMON_LVB_TRAILING_BYTE);
+		s++;
+	}
+	return(TRUE);
+}
+
 bool App::__select_invalid()
 {
 	return ( gSelectRect.Top > gSelectRect.Bottom ||
@@ -1652,6 +1689,26 @@ void App::onDropFile(HDROP hDrop)
 		__write_console_input(wp, len);
 	}
 	DragFinish(hDrop);
+}
+
+/* 新規ウインドウの作成 */
+void makeNewWindow()
+{
+	LPWSTR cd = new TCHAR[MAX_PATH+1];
+	GetCurrentDirectory(MAX_PATH, cd);
+
+	STARTUPINFO si;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+
+	PROCESS_INFORMATION pi;
+	ZeroMemory(&pi, sizeof(pi));
+	if(CreateProcess(NULL, GetCommandLine(), NULL, NULL, FALSE, 0,
+					   NULL, NULL, &si, &pi)){
+		// 使用しないので，すぐにクローズしてよい
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+	}
 }
 
 bool App::onSysCommand(HWND hWnd, DWORD id)

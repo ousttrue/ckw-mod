@@ -36,13 +36,5 @@
 /* main.cpp */
 
 extern DWORD	gBorderSize;
-BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE,CHAR_INFO*,COORD,COORD,SMALL_RECT*);
-void	makeNewWindow();
-
-/* selection.cpp */
-void	selectionClear(HWND hWnd);
-void	onLBtnDown(HWND hWnd, int x, int y);
-void	onLBtnUp(HWND hWnd, int x, int y);
-void	onMouseMove(HWND hWnd, int x, int y);
 
 #endif /* __CKW_H__ */
