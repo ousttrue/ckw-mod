@@ -7,7 +7,12 @@
 class ckOpt;
 class App
 {
-    /* index color */
+    // window columns
+    int	gWinW;		
+    // window rows
+    int	gWinH;	
+
+    // index color
     COLORREF *gColorTable;
 
 public:
@@ -37,9 +42,19 @@ private:
     void onPaint(HWND hWnd);
     void onTimer(HWND hWnd);
     void onWindowPosChange(HWND hWnd, WINDOWPOS* wndpos);
+    void onPasteFromClipboard(HWND hWnd);
+    void onDropFile(HDROP hDrop);
+    bool onSysCommand(HWND hWnd, DWORD id);
+    bool onTopMostMenuCommand(HWND hWnd);
+    bool onConfigMenuCommand(HWND hWnd, DWORD id);
 
+    void __hide_alloc_console();
     bool __select_invalid();
     void __draw_screen(HDC hDC);
+    void __set_console_window_size(LONG cols, LONG rows);
+    void __write_console_input(LPCWSTR str, DWORD length);
+    wchar_t * getAllString();
+    void copyAllStringToClipboard(HWND hWnd);
 };
 
 

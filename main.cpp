@@ -26,20 +26,19 @@
 
 /*****************************************************************************/
 
-HANDLE	gStdIn = NULL;	/* console */
-HANDLE	gStdOut = NULL;
-HANDLE	gStdErr = NULL;
-HWND	gConWnd = NULL;
-
 HANDLE	gChild = NULL;	/* child process */
+
+// console
+HANDLE	gStdIn=NULL;	
+HANDLE	gStdOut=NULL;
+HANDLE	gStdErr=NULL;
+HWND	gConWnd=NULL;
+
 
 LOGFONT	gFontLog;	/* font IME */
 HFONT	gFont;		/* font */
 DWORD	gFontW;		/* char width */
 DWORD	gFontH;		/* char height */
-
-DWORD	gWinW;		/* window columns */
-DWORD	gWinH;		/* window rows */
 
 RECT	gFrame;		/* window frame size */
 HBITMAP gBgBmp = NULL;	/* background image */

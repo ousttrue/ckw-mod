@@ -10,7 +10,8 @@ extern wchar_t*	gTitle;
 extern CONSOLE_SCREEN_BUFFER_INFO* gCSI;
 extern CHAR_INFO*	gScreen;
 
-extern HANDLE	gStdIn;
+// console
+extern HANDLE	gStdIn;	
 extern HANDLE	gStdOut;
 extern HANDLE	gStdErr;
 extern HWND	gConWnd;

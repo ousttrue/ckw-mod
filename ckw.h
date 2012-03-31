@@ -34,8 +34,7 @@
 #define CSI_WndRows(csi) ((csi)->srWindow.Bottom - (csi)->srWindow.Top +1)
 
 /* main.cpp */
-extern HANDLE	gStdIn;
-extern HANDLE	gStdOut;
+
 extern DWORD	gFontW;
 extern DWORD	gFontH;
 extern DWORD	gBorderSize;
@@ -49,14 +48,5 @@ void	selectionClear(HWND hWnd);
 void	onLBtnDown(HWND hWnd, int x, int y);
 void	onLBtnUp(HWND hWnd, int x, int y);
 void	onMouseMove(HWND hWnd, int x, int y);
-
-/* misc.cpp */
-void	copyChar(wchar_t*& p, CHAR_INFO* src, SHORT start, SHORT end, bool ret = true);
-void	copyStringToClipboard(HWND hWnd, const wchar_t * str);
-void	copyAllStringToClipboard(HWND hWnd);
-void	onPasteFromClipboard(HWND hWnd);
-void	onDropFile(HDROP hDrop);
-void	sysmenu_init(HWND hWnd);
-BOOL	onSysCommand(HWND hWnd, DWORD id);
 
 #endif /* __CKW_H__ */

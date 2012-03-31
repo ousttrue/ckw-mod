@@ -20,6 +20,7 @@
  *---------------------------------------------------------------------------*/
 #include "ckw.h"
 #include "selection.h"
+#include "main.h"
 
 static int	gSelectMode = 0;
 static COORD	gSelectPos = { -1, -1 }; // pick point
@@ -144,6 +145,64 @@ static void window_to_charpos(int& x, int& y)
 }
 
 /*****************************************************************************/
+/* (craftware) */
+void copyStringToClipboard( HWND hWnd, const wchar_t * str )
+{
+	size_t length = wcslen(str) +1;
+	HANDLE hMem;
+	wchar_t* ptr;
+	bool	result = true;
+
+	hMem = GlobalAlloc(GMEM_MOVEABLE, sizeof(wchar_t) * length);
+	if(!hMem) result = false;
+
+	if(result && !(ptr = (wchar_t*) GlobalLock(hMem))) {
+		result = false;
+	}
+	if(result) {
+		memcpy(ptr, str, sizeof(wchar_t) * length);
+		GlobalUnlock(hMem);
+	}
+	if(result && !OpenClipboard(hWnd)) {
+		Sleep(10);
+		if(!OpenClipboard(hWnd))
+			result = false;
+	}
+	if(result) {
+		if(!EmptyClipboard() ||
+		   !SetClipboardData(CF_UNICODETEXT, hMem))
+			result = false;
+		CloseClipboard();
+	}
+	if(!result && hMem) {
+		GlobalFree(hMem);
+	}
+}
+
+
+void copyChar(wchar_t*& p, CHAR_INFO* src, SHORT start, SHORT end, bool ret)
+{
+	CHAR_INFO* pend = src + end;
+	CHAR_INFO* test = src + start;
+	CHAR_INFO* last = test-1;
+
+	/* search last char */
+	for( ; test <= pend ; test++) {
+		if(test->Char.UnicodeChar > 0x20)
+			last = test;
+	}
+	/* copy */
+	for(test = src+start ; test <= last ; test++) {
+		if(!(test->Attributes & COMMON_LVB_TRAILING_BYTE))
+			*p++ = test->Char.UnicodeChar;
+	}
+	if(ret && last < pend) {
+		*p++ = L'\r';
+		*p++ = L'\n';
+	}
+	*p = 0;
+}
+
 
 wchar_t * selectionGetString()
 {
