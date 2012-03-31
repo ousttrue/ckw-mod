@@ -18,7 +18,6 @@ extern HANDLE	gChild;
 extern RECT	gFrame;		/* window frame size */
 extern HBITMAP gBgBmp;
 extern HBRUSH	gBgBrush;
-extern DWORD	gBorderSize;
 extern DWORD	gLineSpace;
 extern BOOL	gVScrollHide;
 

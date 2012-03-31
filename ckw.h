@@ -33,8 +33,4 @@
 #define CSI_WndCols(csi) ((csi)->srWindow.Right - (csi)->srWindow.Left +1)
 #define CSI_WndRows(csi) ((csi)->srWindow.Bottom - (csi)->srWindow.Top +1)
 
-/* main.cpp */
-
-extern DWORD	gBorderSize;
-
 #endif /* __CKW_H__ */

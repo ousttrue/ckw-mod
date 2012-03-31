@@ -21,7 +21,10 @@ class App
     // window rows
     int	gWinH;	
 
-    /* screen buffer - copy */
+    // internal border
+    DWORD	gBorderSize;
+
+    // screen buffer - copy
     CONSOLE_SCREEN_BUFFER_INFO* gCSI;
 
     CHAR_INFO *gScreen;
