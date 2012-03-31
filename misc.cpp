@@ -25,7 +25,6 @@
 #include "rsrc.h"
 #include "option.h"
 
-BOOL init_options(ckOpt& opt);
 
 static void __write_console_input(LPCWSTR str, DWORD length)
 {
@@ -385,7 +384,7 @@ void reloadConfig(wchar_t *path)
 
 	ckOpt opt;
 	opt.setFile(filepath);
-    init_options(opt);
+    opt.initialize();
 }
 
 BOOL    onConfigMenuCommand(HWND hWnd, DWORD id)

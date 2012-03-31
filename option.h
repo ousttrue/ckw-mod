@@ -4,11 +4,26 @@
 #include "ckw.h"
 #include <string>
 
+enum COLOR_INDEX {
+	kColor0 = 0,
+	          kColor1,  kColor2,  kColor3,
+	kColor4,  kColor5,  kColor6,  kColor7,
+	kColor8,  kColor9,  kColor10, kColor11,
+	kColor12, kColor13, kColor14, kColor15,
+	kColorCursorFg,
+	kColorCursorBg,
+	kColorCursorImeFg,
+	kColorCursorImeBg,
+	/**/
+	kColorMax,
+};
+
 
 class ckOpt {
 public:
 	ckOpt();
 	~ckOpt();
+    bool initialize();
 
 	void		setFile(const char *path=NULL);
 	void		loadXdefaults();

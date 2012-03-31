@@ -20,6 +20,7 @@
  *---------------------------------------------------------------------------*/
 #include "option.h"
 #include "version.h"
+#include "main.h"
 #include <shlwapi.h>
 
 static bool lookupColor(const char *str, COLORREF& ret)
@@ -1239,5 +1240,55 @@ bool	ckOpt::set(int argc, char *argv[])
 	}
 	return(true);
 }
+
+bool ckOpt::initialize()
+{
+	/* create argv */
+	int	argc;
+	LPWSTR*	wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
+	char**	argv = new char*[argc+1];
+	argv[argc] = 0;
+	for(int i = 0 ; i < argc ; i++) {
+		DWORD wlen = (DWORD) wcslen(wargv[i]);
+		DWORD alen = wlen * 2 + 16;
+		argv[i] = new char[alen];
+		alen = WideCharToMultiByte(CP_ACP, 0, wargv[i],wlen, argv[i],alen,NULL,NULL);
+		argv[i][alen] = 0;
+	}
+
+	loadXdefaults();
+	bool result = set(argc, argv);
+
+	for(int i = 0 ; i < argc ; i++)
+		delete [] argv[i];
+	delete [] argv;
+
+	if(!result) return(FALSE);
+
+	/* set */
+    for(int i = kColor0 ; i <= kColor15 ; i++){
+        gColorTable[i] = getColor(i);
+    }
+	gColorTable[kColor7] = getColorFg();
+	gColorTable[kColor0] = getColorBg();
+
+	gColorTable[kColorCursorBg] = getColorCursor();
+	gColorTable[kColorCursorFg] = ~gColorTable[kColorCursorBg] & 0xFFFFFF;
+	gColorTable[kColorCursorImeBg] = getColorCursorIme();
+	gColorTable[kColorCursorImeFg] = ~gColorTable[kColorCursorImeBg] & 0xFFFFFF;
+
+	gBorderSize = getBorderSize();
+	gLineSpace = getLineSpace();
+
+	if(getBgBmp()) {
+		gBgBmp = (HBITMAP)LoadImageA(NULL, getBgBmp(),
+				IMAGE_BITMAP, 0,0, LR_LOADFROMFILE);
+	}
+	if(gBgBmp)    gBgBrush = CreatePatternBrush(gBgBmp);
+	if(!gBgBrush) gBgBrush = CreateSolidBrush(gColorTable[0]);
+
+	return(TRUE);
+}
+
 
 /* EOF */

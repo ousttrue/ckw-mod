@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *---------------------------------------------------------------------------*/
 #include "ckw.h"
+#include "option.h"
 #include "ime_wrap.h"
 #include "rsrc.h"
 
@@ -70,19 +71,6 @@ GetNumberOfConsoleFontsT	GetNumberOfConsoleFonts;
 SetConsoleFontT			SetConsoleFont;
 
 /* index color */
-enum {
-	kColor0 = 0,
-	          kColor1,  kColor2,  kColor3,
-	kColor4,  kColor5,  kColor6,  kColor7,
-	kColor8,  kColor9,  kColor10, kColor11,
-	kColor12, kColor13, kColor14, kColor15,
-	kColorCursorFg,
-	kColorCursorBg,
-	kColorCursorImeFg,
-	kColorCursorImeBg,
-	/**/
-	kColorMax,
-};
 COLORREF gColorTable[ kColorMax ];
 
 
@@ -1064,65 +1052,15 @@ static BOOL create_console(ckOpt& opt)
 	return(TRUE);
 }
 
-/*----------*/
-BOOL init_options(ckOpt& opt)
-{
-	/* create argv */
-	int	i, argc;
-	LPWSTR*	wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
-	char**	argv = new char*[argc+1];
-	argv[argc] = 0;
-	for(i = 0 ; i < argc ; i++) {
-		DWORD wlen = (DWORD) wcslen(wargv[i]);
-		DWORD alen = wlen * 2 + 16;
-		argv[i] = new char[alen];
-		alen = WideCharToMultiByte(CP_ACP, 0, wargv[i],wlen, argv[i],alen,NULL,NULL);
-		argv[i][alen] = 0;
-	}
 
-	opt.loadXdefaults();
-	bool result = opt.set(argc, argv);
-
-	for(i = 0 ; i < argc ; i++)
-		delete [] argv[i];
-	delete [] argv;
-
-	if(!result) return(FALSE);
-
-	/* set */
-	for(i = kColor0 ; i <= kColor15 ; i++)
-		gColorTable[i] = opt.getColor(i);
-	gColorTable[kColor7] = opt.getColorFg();
-	gColorTable[kColor0] = opt.getColorBg();
-
-	gColorTable[kColorCursorBg] = opt.getColorCursor();
-	gColorTable[kColorCursorFg] = ~gColorTable[kColorCursorBg] & 0xFFFFFF;
-	gColorTable[kColorCursorImeBg] = opt.getColorCursorIme();
-	gColorTable[kColorCursorImeFg] = ~gColorTable[kColorCursorImeBg] & 0xFFFFFF;
-
-	gBorderSize = opt.getBorderSize();
-	gLineSpace = opt.getLineSpace();
-
-	if(opt.getBgBmp()) {
-		gBgBmp = (HBITMAP)LoadImageA(NULL, opt.getBgBmp(),
-				IMAGE_BITMAP, 0,0, LR_LOADFROMFILE);
-	}
-	if(gBgBmp)    gBgBrush = CreatePatternBrush(gBgBmp);
-	if(!gBgBrush) gBgBrush = CreateSolidBrush(gColorTable[0]);
-
-	return(TRUE);
-}
-
-/*----------*/
 static BOOL initialize()
 {
-	ckOpt opt;
-
 	if(! ime_wrap_init()) {
 		trace("ime_wrap_init failed\n");
 	}
 
-	if(! init_options(opt)) {
+	ckOpt opt;
+	if(! opt.initialize()) {
 		return(FALSE);
 	}
 	if(! create_console(opt)) {
