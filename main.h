@@ -21,6 +21,5 @@ extern HBRUSH	gBgBrush;
 extern DWORD	gLineSpace;
 extern BOOL	gVScrollHide;
 
-extern BOOL	gImeOn;
 
 #endif

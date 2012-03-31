@@ -25,7 +25,6 @@
 #include "rsrc.h"
 
 /*****************************************************************************/
-
 HANDLE	gChild = NULL;	/* child process */
 
 // console
@@ -40,17 +39,6 @@ HBITMAP gBgBmp = NULL;	/* background image */
 HBRUSH	gBgBrush = NULL;/* background brush */
 DWORD	gLineSpace = 0;	/* line space */
 BOOL	gVScrollHide = FALSE;
-
-BOOL	gImeOn = FALSE; /* IME-status */
-
-
-
-/*****************************************************************************/
-#include "option.h"
-
-/*----------*/
-/*----------*/
-
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -85,4 +73,3 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmd
     return app.start();
 }
 
-/* EOF */

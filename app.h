@@ -33,6 +33,9 @@ class App
     // index color
     COLORREF *gColorTable;
 
+    // IME-status
+    bool gImeOn;
+
 public:
     App();
 

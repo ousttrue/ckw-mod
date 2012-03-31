@@ -932,7 +932,8 @@ App::App()
         gScreen(NULL),
         gTitle(NULL),
         gCSI(NULL),
-        gBorderSize(0)
+        gBorderSize(0),
+        gImeOn(false)
 {
     gColorTable=new COLORREF[ kColorMax ];
 }
