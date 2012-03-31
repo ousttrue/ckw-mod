@@ -885,6 +885,10 @@ static BOOL create_font(const char* name, int height)
 // for Windows SDK v7.0 エラーが発生する場合はコメントアウト。
 #ifdef _MSC_VER
 #include <winternl.h>
+#else
+// for gcc
+#include <ddk/ntapi.h>
+#define STARTF_TITLEISLINKNAME 0x00000800 
 #endif
 
 /*----------*/
@@ -1183,7 +1187,11 @@ static void _terminate()
 #endif
 
 /*----------*/
+#ifdef _MSC_VER
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE hPrev, LPWSTR lpCmdLine, int nCmdShow)
+#else
+int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow)
+#endif
 {
 #ifdef _DEBUG
 	char *a = new char[1];

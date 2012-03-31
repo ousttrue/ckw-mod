@@ -9,7 +9,18 @@
 
 #ifdef _MSC_VER
 #define strcasecmp _stricmp
+#else
+// for gcc
+#include <stdio.h>
+#define wcscat_s wcscat
+#define sprintf_s sprintf
+#define sscanf_s sscanf
+#define strcpy_s strcpy
+#define strcat_s strcat
+#define _splitpath_s _splitpath
+#define _makepath_s _makepath
 #endif
+
 #ifndef COMMON_LVB_LEADING_BYTE
 #define COMMON_LVB_LEADING_BYTE  0x0100
 #endif

@@ -1113,7 +1113,11 @@ void	ckOpt::_loadXdefaults(const char *path)
 	FILE	*fp;
 	std::string app, name, value;
 
+#ifdef _MSC_VER
 	fopen_s(&fp, path, "r");
+#else
+    fp=fopen(path, "r");
+#endif
 	if(!fp) return;
 
 	do {
@@ -1148,7 +1152,11 @@ void	ckOpt::setFile(const char *path /*=NULL*/)
 static bool getconfigfile(const char* env, char *cfgfile, char *path, int size)
 {
 	if(GetEnvironmentVariableA(env, path, size)) {
+#ifdef _MSC_VER
 		sprintf_s(path, size, "%s\\%s", path, cfgfile);
+#else
+		sprintf(path, "%s\\%s", path, cfgfile);
+#endif
 		if(PathFileExistsA(path) && !PathIsDirectoryA(path)) {
 			return true;
 		}
