@@ -7,6 +7,15 @@
 class ckOpt;
 class App
 {
+    // font IME
+    LOGFONT	gFontLog;	
+    // font
+    HFONT	gFont;		
+    // char width
+    DWORD	gFontW;		
+    // char height
+    DWORD	gFontH;		
+
     // window columns
     int	gWinW;		
     // window rows
@@ -47,10 +56,16 @@ private:
     bool onSysCommand(HWND hWnd, DWORD id);
     bool onTopMostMenuCommand(HWND hWnd);
     bool onConfigMenuCommand(HWND hWnd, DWORD id);
+    void onLBtnDown(HWND hWnd, int x, int y);
+    void onLBtnUp(HWND hWnd, int x, int y);
+    void onMouseMove(HWND hWnd, int x, int y);
 
     void __hide_alloc_console();
     bool __select_invalid();
     void __draw_screen(HDC hDC);
+    void __draw_invert_char_rect(HDC hDC, RECT& rc);
+    void __draw_selection(HDC hDC);
+    void __set_ime_position(HWND hWnd);
     void __set_console_window_size(LONG cols, LONG rows);
     void __write_console_input(LPCWSTR str, DWORD length);
     wchar_t * getAllString();

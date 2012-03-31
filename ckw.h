@@ -35,8 +35,6 @@
 
 /* main.cpp */
 
-extern DWORD	gFontW;
-extern DWORD	gFontH;
 extern DWORD	gBorderSize;
 extern CONSOLE_SCREEN_BUFFER_INFO* gCSI;
 extern CHAR_INFO*	gScreen;

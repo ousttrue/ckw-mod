@@ -35,11 +35,6 @@ HANDLE	gStdErr=NULL;
 HWND	gConWnd=NULL;
 
 
-LOGFONT	gFontLog;	/* font IME */
-HFONT	gFont;		/* font */
-DWORD	gFontW;		/* char width */
-DWORD	gFontH;		/* char height */
-
 RECT	gFrame;		/* window frame size */
 HBITMAP gBgBmp = NULL;	/* background image */
 HBRUSH	gBgBrush = NULL;/* background brush */

@@ -18,14 +18,6 @@ extern HWND	gConWnd;
 
 extern HANDLE	gChild;
 
-extern LOGFONT	gFontLog;	/* font IME */
-extern HFONT	gFont;		/* font */
-extern DWORD	gFontW;		/* char width */
-extern DWORD	gFontH;		/* char height */
-
-extern DWORD	gWinW;		/* window columns */
-extern DWORD	gWinH;		/* window rows */
-
 extern RECT	gFrame;		/* window frame size */
 extern HBITMAP gBgBmp;
 extern HBRUSH	gBgBrush;
