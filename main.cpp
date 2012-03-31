@@ -21,13 +21,6 @@
 #include "ckw.h"
 #include "app.h"
 
-// console
-HANDLE	gStdIn=NULL;	
-HANDLE	gStdOut=NULL;
-HANDLE	gStdErr=NULL;
-HWND	gConWnd=NULL;
-
-
 #ifdef _DEBUG
 #include <crtdbg.h>
 #endif

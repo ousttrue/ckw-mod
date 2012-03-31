@@ -20,7 +20,6 @@
  *---------------------------------------------------------------------------*/
 #include "option.h"
 #include "version.h"
-#include "main.h"
 #include <shlwapi.h>
 
 static bool lookupColor(const char *str, COLORREF& ret)

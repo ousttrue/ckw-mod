@@ -1,5 +1,4 @@
 #include "app.h"
-#include "main.h"
 #include "ime_wrap.h"
 #include "option.h"
 #include "rsrc.h"
@@ -929,6 +928,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 
 App::App()
     :
+        gStdIn(NULL),	
+        gStdOut(NULL),
+        gStdErr(NULL),
+        gConWnd(NULL),
         gChild(NULL),	
         gScreen(NULL),
         gTitle(NULL),

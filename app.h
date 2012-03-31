@@ -7,6 +7,12 @@
 class ckOpt;
 class App
 {
+    // console
+    HANDLE	gStdIn;	
+    HANDLE	gStdOut;
+    HANDLE	gStdErr;
+    HWND	gConWnd;
+
     // child process
     HANDLE	gChild;	
 
