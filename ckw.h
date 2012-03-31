@@ -1,7 +1,9 @@
 #ifndef __CKW_H__
 #define __CKW_H__ 1
 
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0500
+#endif
 #define _UNICODE 1
 #define  UNICODE 1
 #include <windows.h>
@@ -43,7 +45,6 @@ BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE,CHAR_INFO*,COORD,COORD,SMALL_RECT*)
 void	makeNewWindow();
 
 /* selection.cpp */
-BOOL	selectionGetArea(SMALL_RECT& sr);
 void	selectionClear(HWND hWnd);
 void	onLBtnDown(HWND hWnd, int x, int y);
 void	onLBtnUp(HWND hWnd, int x, int y);

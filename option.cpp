@@ -1265,28 +1265,6 @@ bool ckOpt::initialize()
 
 	if(!result) return(FALSE);
 
-	/* set */
-    for(int i = kColor0 ; i <= kColor15 ; i++){
-        gColorTable[i] = getColor(i);
-    }
-	gColorTable[kColor7] = getColorFg();
-	gColorTable[kColor0] = getColorBg();
-
-	gColorTable[kColorCursorBg] = getColorCursor();
-	gColorTable[kColorCursorFg] = ~gColorTable[kColorCursorBg] & 0xFFFFFF;
-	gColorTable[kColorCursorImeBg] = getColorCursorIme();
-	gColorTable[kColorCursorImeFg] = ~gColorTable[kColorCursorImeBg] & 0xFFFFFF;
-
-	gBorderSize = getBorderSize();
-	gLineSpace = getLineSpace();
-
-	if(getBgBmp()) {
-		gBgBmp = (HBITMAP)LoadImageA(NULL, getBgBmp(),
-				IMAGE_BITMAP, 0,0, LR_LOADFROMFILE);
-	}
-	if(gBgBmp)    gBgBrush = CreatePatternBrush(gBgBmp);
-	if(!gBgBrush) gBgBrush = CreateSolidBrush(gColorTable[0]);
-
 	return(TRUE);
 }
 

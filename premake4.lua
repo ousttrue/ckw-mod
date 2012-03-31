@@ -1,6 +1,7 @@
 -- A solution contains projects, and defines the available configurations
 solution "ckw"
 configurations { "Release", "Debug" }
+
 configuration "gmake Debug"
 do
     buildoptions { "-g" }
@@ -68,12 +69,16 @@ language "C++"
 --kind "DynamicLib"
 --kind "ConsoleApp"
 kind "WindowedApp"
-flags { 
+flags {
+    "Unicode",
 }
 files {
     "*.cpp", "*.h", "*.rc",
 }
 defines {
+    "UNICODE",
+    "_UNICODE",
+    "_WIN32_WINNT=0x0500",
 }
 includedirs {
 }

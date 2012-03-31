@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *---------------------------------------------------------------------------*/
 #include "ckw.h"
+#include "selection.h"
 
 static int	gSelectMode = 0;
 static COORD	gSelectPos = { -1, -1 }; // pick point
@@ -45,6 +46,13 @@ static const wchar_t WORD_BREAK_CHARS[] = {
 
 #define SELECT_GetScrn(x,y) \
 	(gScreen + CSI_WndCols(gCSI) * (y - gCSI->srWindow.Top) + x)
+
+static bool __select_invalid()
+{
+	return ( gSelectRect.Top > gSelectRect.Bottom ||
+	         (gSelectRect.Top == gSelectRect.Bottom &&
+	         gSelectRect.Left >= gSelectRect.Right) );
+}
 
 static void __select_word_expand_left()
 {
@@ -137,33 +145,6 @@ static void window_to_charpos(int& x, int& y)
 
 /*****************************************************************************/
 
-static inline bool __select_invalid()
-{
-	return ( gSelectRect.Top > gSelectRect.Bottom ||
-	         (gSelectRect.Top == gSelectRect.Bottom &&
-	         gSelectRect.Left >= gSelectRect.Right) );
-}
-
-/*----------*/
-BOOL	selectionGetArea(SMALL_RECT& sr)
-{
-	if( __select_invalid() )
-		return(FALSE);
-	sr = gSelectRect;
-	return(TRUE);
-}
-
-/*----------*/
-void	selectionClear(HWND hWnd)
-{
-	if( __select_invalid() )
-		return;
-	gSelectRect.Left = gSelectRect.Right = \
-	gSelectRect.Top = gSelectRect.Bottom = 0;
-	InvalidateRect(hWnd, NULL, FALSE);
-}
-
-/*----------*/
 wchar_t * selectionGetString()
 {
 	if( __select_invalid() )
@@ -309,5 +290,25 @@ void	onMouseMove(HWND hWnd, int x, int y)
 		InvalidateRect(hWnd, NULL, FALSE);
 	}
 }
+
+bool selectionGetArea(SMALL_RECT& sr)
+{
+	if( __select_invalid() ){
+		return(FALSE);
+    }
+	sr = gSelectRect;
+	return(TRUE);
+}
+
+void selectionClear(HWND hWnd)
+{
+	if( __select_invalid() ){
+		return;
+    }
+	gSelectRect.Left = gSelectRect.Right = \
+	gSelectRect.Top = gSelectRect.Bottom = 0;
+	InvalidateRect(hWnd, NULL, FALSE);
+}
+
 
 /* EOF */
