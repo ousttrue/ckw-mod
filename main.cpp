@@ -34,12 +34,6 @@ HANDLE	gStdErr=NULL;
 HWND	gConWnd=NULL;
 
 
-RECT	gFrame;		/* window frame size */
-HBITMAP gBgBmp = NULL;	/* background image */
-HBRUSH	gBgBrush = NULL;/* background brush */
-DWORD	gLineSpace = 0;	/* line space */
-BOOL	gVScrollHide = FALSE;
-
 #ifdef _DEBUG
 #include <crtdbg.h>
 #endif

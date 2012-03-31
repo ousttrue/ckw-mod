@@ -20,6 +20,8 @@ class App
     int	gWinW;		
     // window rows
     int	gWinH;	
+    // window frame size
+    RECT	gFrame;
 
     // internal border
     DWORD	gBorderSize;
@@ -32,6 +34,14 @@ class App
 
     // index color
     COLORREF *gColorTable;
+
+    // background image
+    HBITMAP gBgBmp;
+    // background brush
+    HBRUSH	gBgBrush;
+	// line space
+    DWORD	gLineSpace;
+    BOOL	gVScrollHide;
 
     // IME-status
     bool gImeOn;

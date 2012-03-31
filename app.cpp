@@ -933,7 +933,11 @@ App::App()
         gTitle(NULL),
         gCSI(NULL),
         gBorderSize(0),
-        gImeOn(false)
+        gImeOn(false),
+        gBgBmp(NULL),
+        gBgBrush(NULL),
+        gLineSpace(0),
+        gVScrollHide(false)
 {
     gColorTable=new COLORREF[ kColorMax ];
 }
