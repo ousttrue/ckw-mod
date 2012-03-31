@@ -929,6 +929,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 
 App::App()
     :
+        gChild(NULL),	
         gScreen(NULL),
         gTitle(NULL),
         gCSI(NULL),

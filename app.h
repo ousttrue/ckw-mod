@@ -7,6 +7,9 @@
 class ckOpt;
 class App
 {
+    // child process
+    HANDLE	gChild;	
+
     // font IME
     LOGFONT	gFontLog;	
     // font

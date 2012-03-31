@@ -19,13 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *---------------------------------------------------------------------------*/
 #include "ckw.h"
-#include "option.h"
-#include "ime_wrap.h"
 #include "app.h"
-#include "rsrc.h"
-
-/*****************************************************************************/
-HANDLE	gChild = NULL;	/* child process */
 
 // console
 HANDLE	gStdIn=NULL;	

@@ -9,6 +9,5 @@ extern HANDLE	gStdOut;
 extern HANDLE	gStdErr;
 extern HWND	gConWnd;
 
-extern HANDLE	gChild;
 
 #endif
