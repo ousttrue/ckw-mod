@@ -50,20 +50,6 @@ CHAR_INFO*	gScreen = NULL;
 wchar_t*	gTitle = NULL;
 
 
-/*****************************************************************************/
-
-#if 0
-#include <stdio.h>
-void trace(const char *msg)
-{
-	fputs(msg, stdout);
-	fflush(stdout);
-}
-#else
-#define trace(msg)
-#endif
-
-/*****************************************************************************/
 
 BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
 				      COORD size, COORD pos, SMALL_RECT *sr)
