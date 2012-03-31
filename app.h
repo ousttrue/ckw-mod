@@ -21,6 +21,9 @@ class App
     // window rows
     int	gWinH;	
 
+    CHAR_INFO *gScreen;
+    wchar_t *gTitle;
+
     // index color
     COLORREF *gColorTable;
 
@@ -70,6 +73,10 @@ private:
     void __write_console_input(LPCWSTR str, DWORD length);
     wchar_t * getAllString();
     void copyAllStringToClipboard(HWND hWnd);
+    void __select_expand();
+    void __select_word_expand_left();
+    void __select_word_expand_right();
+    void __select_char_expand();
 };
 
 

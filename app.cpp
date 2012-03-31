@@ -83,7 +83,7 @@ static bool __select_invalid()
 	         gSelectRect.Left >= gSelectRect.Right) );
 }
 
-static void __select_word_expand_left()
+void App::__select_word_expand_left()
 {
 	if(SCRN_InvalidArea(gSelectRect.Left, gSelectRect.Top))
 		return;
@@ -104,7 +104,7 @@ static void __select_word_expand_left()
 		gSelectRect.Left = c;
 }
 
-static void __select_word_expand_right()
+void App::__select_word_expand_right()
 {
 	if(SCRN_InvalidArea(gSelectRect.Right, gSelectRect.Bottom))
 		return;
@@ -122,7 +122,7 @@ static void __select_word_expand_right()
 		gSelectRect.Right = c;
 }
 
-static void __select_char_expand()
+void App::__select_char_expand()
 {
 	CHAR_INFO* base;
 
@@ -143,7 +143,7 @@ static void __select_char_expand()
 	}
 }
 
-inline void __select_expand()
+void App::__select_expand()
 {
 	if(gSelectMode == 0) {
 		__select_char_expand();
@@ -891,6 +891,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 
 
 App::App()
+    :
+        gScreen(NULL),
+        gTitle(NULL)
 {
     gColorTable=new COLORREF[ kColorMax ];
 }

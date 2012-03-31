@@ -46,8 +46,6 @@ BOOL	gImeOn = FALSE; /* IME-status */
 
 /* screen buffer - copy */
 CONSOLE_SCREEN_BUFFER_INFO* gCSI = NULL;
-CHAR_INFO*	gScreen = NULL;
-wchar_t*	gTitle = NULL;
 
 
 
