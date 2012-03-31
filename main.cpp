@@ -1124,7 +1124,37 @@ static void _terminate()
 #include <crtdbg.h>
 #endif
 
-/*----------*/
+
+class App
+{
+public:
+    App()
+    {
+    }
+
+    ~App()
+    {
+        _terminate();
+    }
+
+    bool initialize()
+    {
+        return ::initialize();
+    };
+
+    // main loop
+    int start()
+    {
+        MSG msg;
+        while(GetMessage(&msg, NULL, 0,0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        return (int)msg.wParam;
+    }
+};
+
+
 #ifdef _MSC_VER
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE hPrev, LPWSTR lpCmdLine, int nCmdShow)
 #else
@@ -1146,15 +1176,12 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmd
 	_CrtSetReportFile( _CRT_ERROR,  _CRTDBG_FILE_STDERR );
 #endif
 
-	if(initialize()) {
-		MSG msg;
-		while(GetMessage(&msg, NULL, 0,0)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-	}
-	_terminate();
-	return(0);
+    App app;
+    if(!app.initialize()){
+        // 初期化失敗
+        return 1;
+    }
+    return app.start();
 }
 
 /* 新規ウインドウの作成 */
