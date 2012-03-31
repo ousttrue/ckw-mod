@@ -1053,76 +1053,11 @@ static BOOL create_console(ckOpt& opt)
 }
 
 
-static BOOL initialize()
-{
-	if(! ime_wrap_init()) {
-		trace("ime_wrap_init failed\n");
-	}
-
-	ckOpt opt;
-	if(! opt.initialize()) {
-		return(FALSE);
-	}
-	if(! create_console(opt)) {
-		trace("create_console failed\n");
-		return(FALSE);
-	}
-	if(! create_font(opt.getFont(), opt.getFontSize())) {
-		trace("create_font failed\n");
-		return(FALSE);
-	}
-	if(! create_child_process(opt.getCmd(), opt.getCurDir())) {
-		trace("create_child_process failed\n");
-		return(FALSE);
-	}
-	if(! create_window(opt)) {
-		trace("create_window failed\n");
-		return(FALSE);
-	}
-
-	/*
-	wchar_t path[MAX_PATH+1];
-	GetSystemDirectory(path, MAX_PATH);
-	SetCurrentDirectory(path);
-	*/
-	return(TRUE);
-}
-
 #define SAFE_CloseHandle(handle) \
 	if(handle) { CloseHandle(handle); handle = NULL; }
 
 #define SAFE_DeleteObject(handle) \
 	if(handle) { DeleteObject(handle); handle = NULL; }
-
-/*----------*/
-static void _terminate()
-{
-	if(gTitle) {
-		delete [] gTitle;
-		gTitle = NULL;
-	}
-	if(gScreen) {
-		delete [] gScreen;
-		gScreen = NULL;
-	}
-	if(gCSI) {
-		delete gCSI;
-		gCSI = NULL;
-	}
-	gConWnd = NULL;
-	SAFE_CloseHandle(gStdIn);
-	SAFE_CloseHandle(gStdOut);
-	SAFE_CloseHandle(gStdErr);
-	SAFE_CloseHandle(gChild);
-	SAFE_DeleteObject(gFont);
-	SAFE_DeleteObject(gBgBrush);
-	SAFE_DeleteObject(gBgBmp);
-	ime_wrap_term();
-}
-
-#ifdef _DEBUG
-#include <crtdbg.h>
-#endif
 
 
 class App
@@ -1134,12 +1069,57 @@ public:
 
     ~App()
     {
-        _terminate();
+        if(gTitle) {
+            delete [] gTitle;
+            gTitle = NULL;
+        }
+        if(gScreen) {
+            delete [] gScreen;
+            gScreen = NULL;
+        }
+        if(gCSI) {
+            delete gCSI;
+            gCSI = NULL;
+        }
+        gConWnd = NULL;
+        SAFE_CloseHandle(gStdIn);
+        SAFE_CloseHandle(gStdOut);
+        SAFE_CloseHandle(gStdErr);
+        SAFE_CloseHandle(gChild);
+        SAFE_DeleteObject(gFont);
+        SAFE_DeleteObject(gBgBrush);
+        SAFE_DeleteObject(gBgBmp);
+        ime_wrap_term();
     }
 
     bool initialize()
     {
-        return ::initialize();
+        if(! ime_wrap_init()) {
+            trace("ime_wrap_init failed\n");
+        }
+
+        ckOpt opt;
+        if(! opt.initialize()) {
+            return false;
+        }
+        if(! create_console(opt)) {
+            trace("create_console failed\n");
+            return false;
+        }
+        if(! create_font(opt.getFont(), opt.getFontSize())) {
+            trace("create_font failed\n");
+            return false;
+        }
+        if(! create_child_process(opt.getCmd(), opt.getCurDir())) {
+            trace("create_child_process failed\n");
+            return false;
+        }
+        if(! create_window(opt)) {
+            trace("create_window failed\n");
+            return false;
+        }
+
+        return true;
     };
 
     // main loop
@@ -1154,6 +1134,10 @@ public:
     }
 };
 
+
+#ifdef _DEBUG
+#include <crtdbg.h>
+#endif
 
 #ifdef _MSC_VER
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE hPrev, LPWSTR lpCmdLine, int nCmdShow)
