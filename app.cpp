@@ -76,7 +76,7 @@ static const wchar_t WORD_BREAK_CHARS[] = {
 #define SELECT_GetScrn(x,y) \
 	(gScreen + CSI_WndCols(gCSI) * (y - gCSI->srWindow.Top) + x)
 
-static bool __select_invalid()
+bool App::__select_invalid()
 {
 	return ( gSelectRect.Top > gSelectRect.Bottom ||
 	         (gSelectRect.Top == gSelectRect.Bottom &&
@@ -158,14 +158,14 @@ void App::__select_expand()
 	}
 }
 
-static void window_to_charpos(int& x, int& y, int fontW, int fontH)
+void App::window_to_charpos(int& x, int& y)
 {
 	x -= gBorderSize;
 	y -= gBorderSize;
 	if(x < 0) x = 0;
 	if(y < 0) y = 0;
-	x /= fontW;
-	y /= fontH;
+	x /= gFontW;
+	y /= gFontH;
 	x += gCSI->srWindow.Left;
 	y += gCSI->srWindow.Top;
 	if(x > gCSI->srWindow.Right)  x = gCSI->srWindow.Right+1;
@@ -232,7 +232,7 @@ void copyChar(wchar_t*& p, CHAR_INFO* src, SHORT start, SHORT end, bool ret=true
 }
 
 
-wchar_t * selectionGetString()
+wchar_t* App::selectionGetString()
 {
 	if( __select_invalid() )
 		return(NULL);
@@ -288,7 +288,7 @@ void App::onLBtnUp(HWND hWnd, int x, int y)
 	ReleaseCapture();
 	if(!gScreen || !gCSI)
 		return;
-	//window_to_charpos(x, y, gFontW, gFontH);
+	//window_to_charpos(x, y);
 
 	wchar_t* str = selectionGetString();
 	if(!str) return;
@@ -304,7 +304,7 @@ void App::onMouseMove(HWND hWnd, int x, int y)
 		return;
 	if(!gScreen || !gCSI)
 		return;
-	window_to_charpos(x, y, gFontW, gFontH);
+	window_to_charpos(x, y);
 
 	SMALL_RECT bak = gSelectRect;
 
@@ -327,7 +327,7 @@ void App::onMouseMove(HWND hWnd, int x, int y)
 	}
 }
 
-bool selectionGetArea(SMALL_RECT& sr)
+bool App::selectionGetArea(SMALL_RECT& sr)
 {
 	if( __select_invalid() ){
 		return(FALSE);
@@ -336,7 +336,7 @@ bool selectionGetArea(SMALL_RECT& sr)
 	return(TRUE);
 }
 
-void selectionClear(HWND hWnd)
+void App::selectionClear(HWND hWnd)
 {
 	if( __select_invalid() ){
 		return;
@@ -893,7 +893,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 App::App()
     :
         gScreen(NULL),
-        gTitle(NULL)
+        gTitle(NULL),
+        gCSI(NULL)
 {
     gColorTable=new COLORREF[ kColorMax ];
 }
@@ -1790,7 +1791,7 @@ void App::onLBtnDown(HWND hWnd, int x, int y)
 
 	if(!gScreen || !gCSI)
 		return;
-	window_to_charpos(x, y, gFontW, gFontH);
+	window_to_charpos(x, y);
 	SetCapture(hWnd);
 
 	gSelectPos.X = x;

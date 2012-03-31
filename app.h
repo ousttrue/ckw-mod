@@ -21,6 +21,9 @@ class App
     // window rows
     int	gWinH;	
 
+    /* screen buffer - copy */
+    CONSOLE_SCREEN_BUFFER_INFO* gCSI;
+
     CHAR_INFO *gScreen;
     wchar_t *gTitle;
 
@@ -77,6 +80,10 @@ private:
     void __select_word_expand_left();
     void __select_word_expand_right();
     void __select_char_expand();
+    void window_to_charpos(int& x, int& y);
+    wchar_t* selectionGetString();
+    bool selectionGetArea(SMALL_RECT& sr);
+    void selectionClear(HWND hWnd);
 };
 
 

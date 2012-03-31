@@ -6,7 +6,6 @@
 extern DWORD	gLineSpace;
 extern HBITMAP gBgBmp;
 extern HBRUSH	gBgBrush;
-extern CONSOLE_SCREEN_BUFFER_INFO* gCSI;
 
 // console
 extern HANDLE	gStdIn;	

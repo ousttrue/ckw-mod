@@ -36,7 +36,6 @@
 /* main.cpp */
 
 extern DWORD	gBorderSize;
-extern CONSOLE_SCREEN_BUFFER_INFO* gCSI;
 BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE,CHAR_INFO*,COORD,COORD,SMALL_RECT*);
 void	makeNewWindow();
 

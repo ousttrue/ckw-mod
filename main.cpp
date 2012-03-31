@@ -44,9 +44,6 @@ BOOL	gVScrollHide = FALSE;
 
 BOOL	gImeOn = FALSE; /* IME-status */
 
-/* screen buffer - copy */
-CONSOLE_SCREEN_BUFFER_INFO* gCSI = NULL;
-
 
 
 BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
