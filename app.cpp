@@ -163,7 +163,7 @@ void App::__select_expand()
 	}
 }
 
-void App::window_to_charpos(int& x, int& y)
+COORD App::window_to_charpos(int x, int y)
 {
 	x -= gBorderSize;
 	y -= gBorderSize;
@@ -175,6 +175,8 @@ void App::window_to_charpos(int& x, int& y)
 	y += gCSI.srWindow.Top;
 	if(x > gCSI.srWindow.Right)  x = gCSI.srWindow.Right+1;
 	if(y > gCSI.srWindow.Bottom) y = gCSI.srWindow.Bottom;
+    COORD pos={x, y};
+    return pos;
 }
 
 /*****************************************************************************/
@@ -264,7 +266,6 @@ void App::onLBtnUp(HWND hWnd, int x, int y)
 	ReleaseCapture();
 	if(!gScreen)
 		return;
-	//window_to_charpos(x, y);
 
 	wchar_t* str = selectionGetString();
 	if(!str) return;
@@ -280,7 +281,9 @@ void App::onMouseMove(HWND hWnd, int x, int y)
 		return;
 	if(!gScreen)
 		return;
-	window_to_charpos(x, y);
+	COORD pos=window_to_charpos(x, y);
+    x=pos.X;
+    y=pos.Y;
 
 	SMALL_RECT bak = gSelectRect;
 
@@ -1479,7 +1482,9 @@ void App::onLBtnDown(HWND hWnd, int x, int y)
 
 	if(!gScreen)
 		return;
-	window_to_charpos(x, y);
+	COORD pos=window_to_charpos(x, y);
+    x=pos.X;
+    y=pos.Y;
 	SetCapture(hWnd);
 
 	gSelectPos.X = x;

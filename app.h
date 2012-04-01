@@ -103,7 +103,7 @@ private:
     void __select_word_expand_left();
     void __select_word_expand_right();
     void __select_char_expand();
-    void window_to_charpos(int& x, int& y);
+    COORD window_to_charpos(int x, int y);
 
     wchar_t* selectionGetString();
     bool selectionGetArea(SMALL_RECT& sr);
