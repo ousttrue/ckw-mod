@@ -1,5 +1,7 @@
 2012-04-01	ousttrue
-	* 改造開始。プロジェクトをpremake4の管理下においてMinGWでビルドが通るようにした。
+	* 改造開始。プロジェクトをpremake4の管理下においてMinGWでビルドが通るようにした
+	* クラス化。グローバル変数をAppのメンバに移動
+	* Consoleクラス分離(gStdIn, gStdIn, gStdErr, gConWnd, gChild)
 
 2010-07-15  deflis
     Version 0.9.0-mod-d2
