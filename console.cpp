@@ -2,6 +2,7 @@
 #include "ckw.h"
 #include "option.h"
 #include <vector>
+#include <assert.h>
 
 // for Windows SDK v7.0 エラーが発生する場合はコメントアウト。
 #ifdef _MSC_VER
@@ -87,43 +88,6 @@ static void copyStringToClipboard( HWND hWnd, const wchar_t * str )
 
 static BOOL WINAPI sig_handler(DWORD n)
 {
-	return(TRUE);
-}
-
-static BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
-				      COORD size, COORD pos, SMALL_RECT *sr)
-{
-	if(!ReadConsoleOutputA(con, buffer, size, pos, sr))
-		return(FALSE);
-
-	CHAR_INFO* s = buffer;
-	CHAR_INFO* e = buffer + (size.X * size.Y);
-	DWORD	codepage = GetConsoleOutputCP();
-	BYTE	ch[2];
-	WCHAR	wch;
-
-	while(s < e) {
-		ch[0] = s->Char.AsciiChar;
-
-		if(s->Attributes & COMMON_LVB_LEADING_BYTE) {
-			if((s+1) < e && ((s+1)->Attributes & COMMON_LVB_TRAILING_BYTE)) {
-				ch[1] = (s+1)->Char.AsciiChar;
-				if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 2, &wch, 1)) {
-					s->Char.UnicodeChar = wch;
-					s++;
-					s->Char.UnicodeChar = wch;
-					s++;
-					continue;
-				}
-			}
-		}
-
-		if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 1, &wch, 1)) {
-			s->Char.UnicodeChar = wch;
-		}
-		s->Attributes &= ~(COMMON_LVB_LEADING_BYTE | COMMON_LVB_TRAILING_BYTE);
-		s++;
-	}
 	return(TRUE);
 }
 
@@ -426,7 +390,38 @@ CONSOLE_SCREEN_BUFFER_INFO Console::GetConsoleScreenBufferInfo()
 BOOL WINAPI Console::ReadConsoleOutput_Unicode(CHAR_INFO* buffer,
 				      COORD size, COORD pos, SMALL_RECT *sr)
 {
-    return ::ReadConsoleOutput_Unicode(gStdOut, buffer, size, pos, sr);
+    if(!ReadConsoleOutputA(gStdOut, buffer, size, pos, sr))
+        return(FALSE);
+
+    CHAR_INFO* s = buffer;
+    CHAR_INFO* e = buffer + (size.X * size.Y);
+    DWORD	codepage = GetConsoleOutputCP();
+    BYTE	ch[2];
+    WCHAR	wch;
+
+    while(s < e) {
+        ch[0] = s->Char.AsciiChar;
+
+        if(s->Attributes & COMMON_LVB_LEADING_BYTE) {
+            if((s+1) < e && ((s+1)->Attributes & COMMON_LVB_TRAILING_BYTE)) {
+                ch[1] = (s+1)->Char.AsciiChar;
+                if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 2, &wch, 1)) {
+                    s->Char.UnicodeChar = wch;
+                    s++;
+                    s->Char.UnicodeChar = wch;
+                    s++;
+                    continue;
+                }
+            }
+        }
+
+        if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 1, &wch, 1)) {
+            s->Char.UnicodeChar = wch;
+        }
+        s->Attributes &= ~(COMMON_LVB_LEADING_BYTE | COMMON_LVB_TRAILING_BYTE);
+        s++;
+    }
+    return(TRUE);
 }
 
 static void copyChar(wchar_t*& p, CHAR_INFO* src, SHORT start, SHORT end, bool ret=true)
@@ -465,20 +460,20 @@ wchar_t* Console::ReadStdOut(int nb,
 	*wp = 0;
 	if(gSelectRect.Top == gSelectRect.Bottom) {
 		sr.Top = sr.Bottom = gSelectRect.Top;
-		::ReadConsoleOutput_Unicode(gStdOut, &work[0], size, pos, &sr);
+		ReadConsoleOutput_Unicode(&work[0], size, pos, &sr);
 		copyChar(wp, &work[0], gSelectRect.Left, gSelectRect.Right-1, false);
 	}
 	else {
 		sr.Top = sr.Bottom = gSelectRect.Top;
-		::ReadConsoleOutput_Unicode(gStdOut, &work[0], size, pos, &sr);
+		ReadConsoleOutput_Unicode(&work[0], size, pos, &sr);
 		copyChar(wp, &work[0], gSelectRect.Left, gCSI.srWindow.Right);
 		for(int y = gSelectRect.Top+1 ; y <= gSelectRect.Bottom-1 ; y++) {
 			sr.Top = sr.Bottom = y;
-			::ReadConsoleOutput_Unicode(gStdOut, &work[0], size, pos, &sr);
+			ReadConsoleOutput_Unicode(&work[0], size, pos, &sr);
 			copyChar(wp, &work[0], gCSI.srWindow.Left, gCSI.srWindow.Right);
 		}
 		sr.Top = sr.Bottom = gSelectRect.Bottom;
-		::ReadConsoleOutput_Unicode(gStdOut, &work[0], size, pos, &sr);
+		ReadConsoleOutput_Unicode(&work[0], size, pos, &sr);
 		copyChar(wp, &work[0], gCSI.srWindow.Left, gSelectRect.Right-1, false);
 	}
 
@@ -605,6 +600,7 @@ bool Console::initialize(std::shared_ptr<ckOpt> opt)
 	while((gConWnd = GetConsoleWindow()) == NULL) {
 		Sleep(10);
 	}
+    assert(gConWnd);
 
 	if (!bResult){
 		while (!IsWindowVisible(gConWnd)) {
@@ -628,15 +624,23 @@ bool Console::initialize(std::shared_ptr<ckOpt> opt)
     gStdIn  = CreateFile(L"CONIN$",  GENERIC_READ|GENERIC_WRITE,
             FILE_SHARE_READ|FILE_SHARE_WRITE,
             &sa, OPEN_EXISTING, 0, NULL);
+    if(!gStdIn){
+        return(FALSE);
+    }
+
     gStdOut = CreateFile(L"CONOUT$",  GENERIC_READ|GENERIC_WRITE,
             FILE_SHARE_READ|FILE_SHARE_WRITE,
             &sa, OPEN_EXISTING, 0, NULL);
+    if(!gStdOut){
+        return(FALSE);
+    }
+
     gStdErr = CreateFile(L"CONOUT$",  GENERIC_READ|GENERIC_WRITE,
             FILE_SHARE_READ|FILE_SHARE_WRITE,
             &sa, OPEN_EXISTING, 0, NULL);
-
-    if(!gConWnd || !gStdIn || !gStdOut || !gStdErr)
+    if(!gStdErr){
         return(FALSE);
+    }
 
     HINSTANCE hLib = LoadLibraryW( L"KERNEL32.DLL" );
     if (hLib == NULL)
