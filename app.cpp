@@ -2,56 +2,12 @@
 #include "ime_wrap.h"
 #include "option.h"
 #include "rsrc.h"
+#include "console.h"
 #include <windows.h>
+#include <string>
+#include <vector>
+#include <iostream>
 
-/* setConsoleFont */
-#define MAX_FONTS 128
-
-
-typedef struct _CONSOLE_FONT {
-  DWORD index;
-  COORD dim;
-} CONSOLE_FONT, *PCONSOLE_FONT;
-
-typedef BOOL  (WINAPI *GetConsoleFontInfoT)( HANDLE,BOOL,DWORD,PCONSOLE_FONT );
-typedef DWORD (WINAPI *GetNumberOfConsoleFontsT)( VOID );
-typedef BOOL  (WINAPI *SetConsoleFontT)( HANDLE, DWORD );
-
-GetConsoleFontInfoT		GetConsoleFontInfo;
-GetNumberOfConsoleFontsT	GetNumberOfConsoleFonts;
-SetConsoleFontT			SetConsoleFont;
-
-// for Windows SDK v7.0 エラーが発生する場合はコメントアウト。
-#ifdef _MSC_VER
-#include <winternl.h>
-#else
-// for gcc
-#include <ddk/ntapi.h>
-#define STARTF_TITLEISLINKNAME 0x00000800 
-#endif
-
-#if 0
-#include <stdio.h>
-void trace(const char *msg)
-{
-	fputs(msg, stdout);
-	fflush(stdout);
-}
-#else
-#define trace(msg)
-#endif
-
-
-#define SAFE_CloseHandle(handle) \
-	if(handle) { CloseHandle(handle); handle = NULL; }
-
-#define SAFE_DeleteObject(handle) \
-	if(handle) { DeleteObject(handle); handle = NULL; }
-
-
-static int	gSelectMode = 0;
-static COORD	gSelectPos = { -1, -1 }; // pick point
-static SMALL_RECT gSelectRect = { -1, -1, -1, -1 }; // expanded selection area
 
 static const wchar_t WORD_BREAK_CHARS[] = {
 	L' ',  L'\t', L'\"', L'&', L'\'', L'(', L')', L'*',
@@ -67,49 +23,62 @@ static const wchar_t WORD_BREAK_CHARS[] = {
 /*****************************************************************************/
 
 #define SCRN_InvalidArea(x,y) \
-	(y < gCSI->srWindow.Top    ||	\
-	 y > gCSI->srWindow.Bottom ||	\
-	 x < gCSI->srWindow.Left   ||	\
-	 x > gCSI->srWindow.Right)
+	(y < gCSI.srWindow.Top    ||	\
+	 y > gCSI.srWindow.Bottom ||	\
+	 x < gCSI.srWindow.Left   ||	\
+	 x > gCSI.srWindow.Right)
 
 #define SELECT_GetScrn(x,y) \
-	(gScreen + CSI_WndCols(gCSI) * (y - gCSI->srWindow.Top) + x)
+	(gScreen + CSI_WndCols(&gCSI) * (y - gCSI.srWindow.Top) + x)
 
-BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
-				      COORD size, COORD pos, SMALL_RECT *sr)
+App::App()
+    :
+        gScreen(NULL),
+        gTitle(NULL),
+        gBorderSize(0),
+        gImeOn(false),
+        gBgBmp(NULL),
+        gBgBrush(NULL),
+        gLineSpace(0),
+        gVScrollHide(false),
+        m_console(new Console)
 {
-	if(!ReadConsoleOutputA(con, buffer, size, pos, sr))
-		return(FALSE);
+    gColorTable=new COLORREF[ kColorMax ];
 
-	CHAR_INFO* s = buffer;
-	CHAR_INFO* e = buffer + (size.X * size.Y);
-	DWORD	codepage = GetConsoleOutputCP();
-	BYTE	ch[2];
-	WCHAR	wch;
+    ZeroMemory(&gCSI, sizeof(gCSI));
 
-	while(s < e) {
-		ch[0] = s->Char.AsciiChar;
+    gSelectMode = 0;
+    gSelectPos.X = -1;
+    gSelectPos.Y = -1;
+	gSelectRect.Left = gSelectRect.Right = -1;
+	gSelectRect.Top  = gSelectRect.Bottom = -1;
 
-		if(s->Attributes & COMMON_LVB_LEADING_BYTE) {
-			if((s+1) < e && ((s+1)->Attributes & COMMON_LVB_TRAILING_BYTE)) {
-				ch[1] = (s+1)->Char.AsciiChar;
-				if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 2, &wch, 1)) {
-					s->Char.UnicodeChar = wch;
-					s++;
-					s->Char.UnicodeChar = wch;
-					s++;
-					continue;
-				}
-			}
-		}
+    gWinW=0;
+    gWinH=0;
 
-		if(MultiByteToWideChar(codepage, 0, (LPCSTR)ch, 1, &wch, 1)) {
-			s->Char.UnicodeChar = wch;
-		}
-		s->Attributes &= ~(COMMON_LVB_LEADING_BYTE | COMMON_LVB_TRAILING_BYTE);
-		s++;
-	}
-	return(TRUE);
+    gFrame.left=0;
+    gFrame.right=0;
+    gFrame.top=0;
+    gFrame.bottom=0;
+}
+
+App::~App()
+{
+    if(gColorTable){
+        delete [] gColorTable;
+    }
+    if(gTitle) {
+        delete [] gTitle;
+        gTitle = NULL;
+    }
+    if(gScreen) {
+        delete [] gScreen;
+        gScreen = NULL;
+    }
+    SAFE_DeleteObject(gFont);
+    SAFE_DeleteObject(gBgBrush);
+    SAFE_DeleteObject(gBgBmp);
+    ime_wrap_term();
 }
 
 bool App::__select_invalid()
@@ -127,7 +96,7 @@ void App::__select_word_expand_left()
 	CHAR_INFO* ptr = base;
 	int c = gSelectRect.Left;
 
-	for( ; c >= gCSI->srWindow.Left ; c--, ptr--) {
+	for( ; c >= gCSI.srWindow.Left ; c--, ptr--) {
 		if(wcschr(WORD_BREAK_CHARS, ptr->Char.UnicodeChar)) {
 			c++;
 			break;
@@ -148,7 +117,7 @@ void App::__select_word_expand_right()
 	CHAR_INFO* ptr = base;
 	int c = gSelectRect.Right;
 
-	for( ; c <= gCSI->srWindow.Right ; c++, ptr++) {
+	for( ; c <= gCSI.srWindow.Right ; c++, ptr++) {
 		if(wcschr(WORD_BREAK_CHARS, ptr->Char.UnicodeChar)) {
 			break;
 		}
@@ -164,7 +133,7 @@ void App::__select_char_expand()
 
 	if(SCRN_InvalidArea(gSelectRect.Left, gSelectRect.Top)) {
 	}
-	else if(gSelectRect.Left-1 >= gCSI->srWindow.Left) {
+	else if(gSelectRect.Left-1 >= gCSI.srWindow.Left) {
 		base  = SELECT_GetScrn(gSelectRect.Left, gSelectRect.Top);
 		if(base->Attributes & COMMON_LVB_TRAILING_BYTE)
 			gSelectRect.Left--;
@@ -189,8 +158,8 @@ void App::__select_expand()
 		__select_word_expand_right();
 	}
 	else if(gSelectMode == 2) {
-		gSelectRect.Left = gCSI->srWindow.Left;
-		gSelectRect.Right = gCSI->srWindow.Right+1;
+		gSelectRect.Left = gCSI.srWindow.Left;
+		gSelectRect.Right = gCSI.srWindow.Right+1;
 	}
 }
 
@@ -202,10 +171,10 @@ void App::window_to_charpos(int& x, int& y)
 	if(y < 0) y = 0;
 	x /= gFontW;
 	y /= gFontH;
-	x += gCSI->srWindow.Left;
-	y += gCSI->srWindow.Top;
-	if(x > gCSI->srWindow.Right)  x = gCSI->srWindow.Right+1;
-	if(y > gCSI->srWindow.Bottom) y = gCSI->srWindow.Bottom;
+	x += gCSI.srWindow.Left;
+	y += gCSI.srWindow.Top;
+	if(x > gCSI.srWindow.Right)  x = gCSI.srWindow.Right+1;
+	if(y > gCSI.srWindow.Bottom) y = gCSI.srWindow.Bottom;
 }
 
 /*****************************************************************************/
@@ -244,7 +213,7 @@ void copyStringToClipboard( HWND hWnd, const wchar_t * str )
 }
 
 
-void copyChar(wchar_t*& p, CHAR_INFO* src, SHORT start, SHORT end, bool ret=true)
+static void copyChar(wchar_t*& p, CHAR_INFO* src, SHORT start, SHORT end, bool ret=true)
 {
 	CHAR_INFO* pend = src + end;
 	CHAR_INFO* test = src + start;
@@ -279,42 +248,13 @@ wchar_t* App::selectionGetString()
 		nb = gSelectRect.Right - gSelectRect.Left;
 	}
 	else {
-		nb = gCSI->srWindow.Right - gSelectRect.Left+1;
+		nb = gCSI.srWindow.Right - gSelectRect.Left+1;
 		for(y = gSelectRect.Top+1 ; y <= gSelectRect.Bottom-1 ; y++)
-			nb += CSI_WndCols(gCSI);
-		nb += gSelectRect.Right - gCSI->srWindow.Left;
+			nb += CSI_WndCols(&gCSI);
+		nb += gSelectRect.Right - gCSI.srWindow.Left;
 	}
 
-	COORD      size = { CSI_WndCols(gCSI), 1 };
-	CHAR_INFO* work = new CHAR_INFO[ size.X ];
-	wchar_t*   buffer = new wchar_t[ nb +32 ];
-	wchar_t*   wp = buffer;
-	COORD      pos = { 0,0 };
-	SMALL_RECT sr = { gCSI->srWindow.Left, 0, gCSI->srWindow.Right, 0 };
-
-	*wp = 0;
-
-	if(gSelectRect.Top == gSelectRect.Bottom) {
-		sr.Top = sr.Bottom = gSelectRect.Top;
-		ReadConsoleOutput_Unicode(gStdOut, work, size, pos, &sr);
-		copyChar(wp, work, gSelectRect.Left, gSelectRect.Right-1, false);
-	}
-	else {
-		sr.Top = sr.Bottom = gSelectRect.Top;
-		ReadConsoleOutput_Unicode(gStdOut, work, size, pos, &sr);
-		copyChar(wp, work, gSelectRect.Left, gCSI->srWindow.Right);
-		for(y = gSelectRect.Top+1 ; y <= gSelectRect.Bottom-1 ; y++) {
-			sr.Top = sr.Bottom = y;
-			ReadConsoleOutput_Unicode(gStdOut, work, size, pos, &sr);
-			copyChar(wp, work, gCSI->srWindow.Left, gCSI->srWindow.Right);
-		}
-		sr.Top = sr.Bottom = gSelectRect.Bottom;
-		ReadConsoleOutput_Unicode(gStdOut, work, size, pos, &sr);
-		copyChar(wp, work, gCSI->srWindow.Left, gSelectRect.Right-1, false);
-	}
-
-	delete [] work;
-	return(buffer);
+    return m_console->ReadStdOut(nb, gCSI, gSelectRect);
 }
 
 void App::onLBtnUp(HWND hWnd, int x, int y)
@@ -322,7 +262,7 @@ void App::onLBtnUp(HWND hWnd, int x, int y)
 	if(hWnd != GetCapture())
 		return;
 	ReleaseCapture();
-	if(!gScreen || !gCSI)
+	if(!gScreen)
 		return;
 	//window_to_charpos(x, y);
 
@@ -338,7 +278,7 @@ void App::onMouseMove(HWND hWnd, int x, int y)
 {
 	if(hWnd != GetCapture())
 		return;
-	if(!gScreen || !gCSI)
+	if(!gScreen)
 		return;
 	window_to_charpos(x, y);
 
@@ -485,22 +425,22 @@ wchar_t * App::getAllString()
 {
 	int nb;
 
-	nb = gCSI->dwSize.X * gCSI->dwSize.Y;
+	nb = gCSI.dwSize.X * gCSI.dwSize.Y;
 
-	COORD      size = { gCSI->dwSize.X, 1 };
-	CHAR_INFO* work = new CHAR_INFO[ gCSI->dwSize.X ];
+	COORD      size = { gCSI.dwSize.X, 1 };
+	CHAR_INFO* work = new CHAR_INFO[ gCSI.dwSize.X ];
 	wchar_t*   buffer = new wchar_t[ nb ];
 	wchar_t*   wp = buffer;
 	COORD      pos = { 0,0 };
-	SMALL_RECT sr = { 0, 0, gCSI->dwSize.X-1, 0 };
+	SMALL_RECT sr = { 0, 0, (short)(gCSI.dwSize.X-1), 0 };
 
 	*wp = 0;
 
-	for( int y=0 ; y<gCSI->dwSize.Y ; ++y )
+	for( int y=0 ; y<gCSI.dwSize.Y ; ++y )
 	{
 		sr.Top = sr.Bottom = y;
-		ReadConsoleOutput_Unicode(gStdOut, work, size, pos, &sr);
-		copyChar( wp, work, 0, gCSI->dwSize.X-1 );
+		m_console->ReadConsoleOutput_Unicode(work, size, pos, &sr);
+		copyChar( wp, work, 0, gCSI.dwSize.X-1 );
 	}
 
 	delete [] work;
@@ -602,86 +542,6 @@ void	sysmenu_init(HWND hWnd)
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
 }
 
-BOOL WINAPI sig_handler(DWORD n)
-{
-	return(TRUE);
-}
-
-void App::__hide_alloc_console()
-{
-	bool bResult = false;
-
-	/*
-	 * Open Console Window
-	 * hack StartupInfo.wShowWindow flag
-	 */
-
-#ifdef _MSC_VER
-#ifdef _WIN64
-	INT_PTR peb = *(INT_PTR*)((INT_PTR)NtCurrentTeb() + 0x60);
-	INT_PTR param = *(INT_PTR*) (peb + 0x20);
-	DWORD* pflags = (DWORD*) (param + 0xa4);
-	WORD* pshow = (WORD*) (param + 0xa8); 
-#else
-#ifndef _WINTERNL_
-	INT_PTR peb = *(INT_PTR*)((INT_PTR)NtCurrentTeb() + 0x30);
-	INT_PTR param = *(INT_PTR*) (peb + 0x10);
-#else
-	// for Windows SDK v7.0
-	PPEB peb = *(PPEB*)((INT_PTR)NtCurrentTeb() + 0x30);
-	PRTL_USER_PROCESS_PARAMETERS param = peb->ProcessParameters;
-#endif // _WINTERNL_
-
-	DWORD* pflags = (DWORD*)((INT_PTR)param + 0x68);
-	WORD* pshow = (WORD*)((INT_PTR)param + 0x6C);
-#endif // _WIN64
-#else
-	// for gcc
-	INT_PTR peb = *(INT_PTR*)((INT_PTR)NtCurrentTeb() + 0x30);
-    PRTL_USER_PROCESS_PARAMETERS param = *(PRTL_USER_PROCESS_PARAMETERS*)(peb + 0x10);
-	DWORD* pflags = (DWORD*)&(param->dwFlags);
-	WORD* pshow = (WORD*)&(param->wShowWindow); 
-#endif // _MSC_VER
-
-	DWORD	backup_flags = *pflags;
-	WORD	backup_show  = *pshow;
-
-	STARTUPINFO si;
-	GetStartupInfo(&si);
-
-	/* check */
-	if(si.dwFlags == backup_flags && si.wShowWindow == backup_show) {
-		// 詳細は不明だがSTARTF_TITLEISLINKNAMEが立っていると、
-		// Console窓隠しに失敗するので除去(Win7-64bit)
-		if (*pflags & STARTF_TITLEISLINKNAME) {
-			*pflags &= ~STARTF_TITLEISLINKNAME;
-		}
-		*pflags |= STARTF_USESHOWWINDOW;
-		*pshow  = SW_HIDE;
-		bResult = true;
-	}
-
-	AllocConsole();
-
-	/* restore */
-	*pflags = backup_flags;
-	*pshow  = backup_show;
-
-	while((gConWnd = GetConsoleWindow()) == NULL) {
-		Sleep(10);
-	}
-
-	if (!bResult){
-		while (!IsWindowVisible(gConWnd)) {
-			Sleep(10);
-		}
-		while(IsWindowVisible(gConWnd)) {
-			ShowWindow(gConWnd, SW_HIDE);
-			Sleep(10);
-		}
-	}
-}
-
 void App::__draw_invert_char_rect(HDC hDC, RECT& rc)
 {
 	rc.right++;
@@ -699,11 +559,11 @@ void App::__draw_selection(HDC hDC)
 	if(!selectionGetArea(sel))
 		return;
 
-	if(gCSI->srWindow.Top <= sel.Top && sel.Top <= gCSI->srWindow.Bottom)
+	if(gCSI.srWindow.Top <= sel.Top && sel.Top <= gCSI.srWindow.Bottom)
 		;
-	else if(gCSI->srWindow.Top <= sel.Bottom && sel.Bottom <= gCSI->srWindow.Bottom)
+	else if(gCSI.srWindow.Top <= sel.Bottom && sel.Bottom <= gCSI.srWindow.Bottom)
 		;
-	else if(sel.Top < gCSI->srWindow.Top && gCSI->srWindow.Bottom < sel.Bottom)
+	else if(sel.Top < gCSI.srWindow.Top && gCSI.srWindow.Bottom < sel.Bottom)
 		;
 	else
 		return;
@@ -712,45 +572,45 @@ void App::__draw_selection(HDC hDC)
 
 	if(sel.Top == sel.Bottom) {
 		/* single line */
-		rc.left  = sel.Left - gCSI->srWindow.Left;
-		rc.right = sel.Right-1 - gCSI->srWindow.Left;
+		rc.left  = sel.Left - gCSI.srWindow.Left;
+		rc.right = sel.Right-1 - gCSI.srWindow.Left;
 		rc.top   = \
-		rc.bottom = sel.Top - gCSI->srWindow.Top;
+		rc.bottom = sel.Top - gCSI.srWindow.Top;
 		__draw_invert_char_rect(hDC, rc);
 		return;
 	}
 
 	/* multi line */
-	if(gCSI->srWindow.Top <= sel.Top && sel.Top <= gCSI->srWindow.Bottom) {
+	if(gCSI.srWindow.Top <= sel.Top && sel.Top <= gCSI.srWindow.Bottom) {
 		/* top */
-		rc.left = sel.Left - gCSI->srWindow.Left;
-		rc.right = gCSI->srWindow.Right - gCSI->srWindow.Left;
+		rc.left = sel.Left - gCSI.srWindow.Left;
+		rc.right = gCSI.srWindow.Right - gCSI.srWindow.Left;
 		rc.top = \
-		rc.bottom = sel.Top - gCSI->srWindow.Top;
+		rc.bottom = sel.Top - gCSI.srWindow.Top;
 		__draw_invert_char_rect(hDC, rc);
 	}
 	if(sel.Top+1 <= sel.Bottom-1) {
 		/* center */
 		rc.left = 0;
-		rc.right = gCSI->srWindow.Right - gCSI->srWindow.Left;
+		rc.right = gCSI.srWindow.Right - gCSI.srWindow.Left;
 
-		if(gCSI->srWindow.Top <= sel.Top+1)
-			rc.top = sel.Top+1 - gCSI->srWindow.Top;
+		if(gCSI.srWindow.Top <= sel.Top+1)
+			rc.top = sel.Top+1 - gCSI.srWindow.Top;
 		else
 			rc.top = 0;
 
-		if(gCSI->srWindow.Bottom >= sel.Bottom-1)
-			rc.bottom = sel.Bottom-1 - gCSI->srWindow.Top;
+		if(gCSI.srWindow.Bottom >= sel.Bottom-1)
+			rc.bottom = sel.Bottom-1 - gCSI.srWindow.Top;
 		else
-			rc.bottom = gCSI->srWindow.Bottom - gCSI->srWindow.Top;
+			rc.bottom = gCSI.srWindow.Bottom - gCSI.srWindow.Top;
 		__draw_invert_char_rect(hDC, rc);
 	}
-	if(gCSI->srWindow.Top <= sel.Bottom && sel.Bottom <= gCSI->srWindow.Bottom) {
+	if(gCSI.srWindow.Top <= sel.Bottom && sel.Bottom <= gCSI.srWindow.Bottom) {
 		/* bottom */
 		rc.left = 0;
-		rc.right = sel.Right-1 - gCSI->srWindow.Left;
+		rc.right = sel.Right-1 - gCSI.srWindow.Left;
 		rc.top = \
-		rc.bottom = sel.Bottom - gCSI->srWindow.Top;
+		rc.bottom = sel.Bottom - gCSI.srWindow.Top;
 		__draw_invert_char_rect(hDC, rc);
 	}
 }
@@ -764,19 +624,19 @@ void App::__draw_screen(HDC hDC)
 	CHAR_INFO* ptr = gScreen;
 	int	 work_color_fg = -1;
 	int	 work_color_bg = -1;
-	wchar_t* work_text = new wchar_t[ CSI_WndCols(gCSI) ];
+	wchar_t* work_text = new wchar_t[ CSI_WndCols(&gCSI) ];
 	wchar_t* work_text_ptr;
-	INT*	 work_width = new INT[ CSI_WndCols(gCSI) ];
+	INT*	 work_width = new INT[ CSI_WndCols(&gCSI) ];
 	INT*	 work_width_ptr;
 	int	 work_pntX;
 
 	pntY = 0;
-	for(y = gCSI->srWindow.Top ; y <= gCSI->srWindow.Bottom ; y++) {
+	for(y = gCSI.srWindow.Top ; y <= gCSI.srWindow.Bottom ; y++) {
 		pntX = 0;
 		work_pntX = 0;
 		work_text_ptr = work_text;
 		work_width_ptr = work_width;
-		for(x = gCSI->srWindow.Left ; x <= gCSI->srWindow.Right ; x++) {
+		for(x = gCSI.srWindow.Left ; x <= gCSI.srWindow.Right ; x++) {
 
 			if(ptr->Attributes & COMMON_LVB_TRAILING_BYTE) {
 				pntX += gFontW;
@@ -831,18 +691,18 @@ void App::__draw_screen(HDC hDC)
 	__draw_selection(hDC);
 
 	/* draw cursor */
-	if(gCSI->srWindow.Top    <= gCSI->dwCursorPosition.Y &&
-	   gCSI->srWindow.Bottom >= gCSI->dwCursorPosition.Y &&
-	   gCSI->srWindow.Left   <= gCSI->dwCursorPosition.X &&
-	   gCSI->srWindow.Right  >= gCSI->dwCursorPosition.X) {
+	if(gCSI.srWindow.Top    <= gCSI.dwCursorPosition.Y &&
+	   gCSI.srWindow.Bottom >= gCSI.dwCursorPosition.Y &&
+	   gCSI.srWindow.Left   <= gCSI.dwCursorPosition.X &&
+	   gCSI.srWindow.Right  >= gCSI.dwCursorPosition.X) {
 		color_fg = (gImeOn) ? kColorCursorImeFg : kColorCursorFg;
 		color_bg = (gImeOn) ? kColorCursorImeBg : kColorCursorBg;
 		SetTextColor(hDC, gColorTable[ color_fg ]);
 		SetBkColor(  hDC, gColorTable[ color_bg ]);
 		SetBkMode(hDC, OPAQUE);
-		pntX = gCSI->dwCursorPosition.X - gCSI->srWindow.Left;
-		pntY = gCSI->dwCursorPosition.Y - gCSI->srWindow.Top;
-		ptr = gScreen + CSI_WndCols(gCSI) * pntY + pntX;
+		pntX = gCSI.dwCursorPosition.X - gCSI.srWindow.Left;
+		pntY = gCSI.dwCursorPosition.Y - gCSI.srWindow.Top;
+		ptr = gScreen + CSI_WndCols(&gCSI) * pntY + pntX;
 		pntX *= gFontW;
 		pntY *= gFontH;
 		*work_width = (ptr->Attributes & COMMON_LVB_LEADING_BYTE) ? gFontW*2 : gFontW;
@@ -856,12 +716,10 @@ void App::__draw_screen(HDC hDC)
 
 void App::__set_console_window_size(LONG cols, LONG rows)
 {
-	CONSOLE_SCREEN_BUFFER_INFO csi;
-	GetConsoleScreenBufferInfo(gStdOut, &csi);
-
 	gWinW = cols;
 	gWinH = rows;
 
+	CONSOLE_SCREEN_BUFFER_INFO csi=m_console->GetConsoleScreenBufferInfo();
 	if(cols == CSI_WndCols(&csi) && rows == CSI_WndRows(&csi))
 		return;
 
@@ -881,16 +739,15 @@ void App::__set_console_window_size(LONG cols, LONG rows)
 		csi.srWindow.Bottom = csi.dwSize.Y -1;
 	}
 
-	SetConsoleScreenBufferSize(gStdOut, csi.dwSize);
-	SetConsoleWindowInfo(gStdOut, TRUE, &csi.srWindow);
+    m_console->SetConsoleScreenBufferInfo(csi);
 }
 
 void App::__set_ime_position(HWND hWnd)
 {
-	if(!gImeOn || !gCSI) return;
+	if(!gImeOn) return;
 	HIMC imc = ImmGetContext(hWnd);
-	LONG px = gCSI->dwCursorPosition.X - gCSI->srWindow.Left;
-	LONG py = gCSI->dwCursorPosition.Y - gCSI->srWindow.Top;
+	LONG px = gCSI.dwCursorPosition.X - gCSI.srWindow.Left;
+	LONG py = gCSI.dwCursorPosition.Y - gCSI.srWindow.Top;
 	COMPOSITIONFORM cf;
 	cf.dwStyle = CFS_POINT;
 	cf.ptCurrentPos.x = px * gFontW + gBorderSize;
@@ -926,54 +783,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 }
 
 
-App::App()
-    :
-        gStdIn(NULL),	
-        gStdOut(NULL),
-        gStdErr(NULL),
-        gConWnd(NULL),
-        gChild(NULL),	
-        gScreen(NULL),
-        gTitle(NULL),
-        gCSI(NULL),
-        gBorderSize(0),
-        gImeOn(false),
-        gBgBmp(NULL),
-        gBgBrush(NULL),
-        gLineSpace(0),
-        gVScrollHide(false)
-{
-    gColorTable=new COLORREF[ kColorMax ];
-}
-
-App::~App()
-{
-    if(gColorTable){
-        delete [] gColorTable;
-    }
-    if(gTitle) {
-        delete [] gTitle;
-        gTitle = NULL;
-    }
-    if(gScreen) {
-        delete [] gScreen;
-        gScreen = NULL;
-    }
-    if(gCSI) {
-        delete gCSI;
-        gCSI = NULL;
-    }
-    gConWnd = NULL;
-    SAFE_CloseHandle(gStdIn);
-    SAFE_CloseHandle(gStdOut);
-    SAFE_CloseHandle(gStdErr);
-    SAFE_CloseHandle(gChild);
-    SAFE_DeleteObject(gFont);
-    SAFE_DeleteObject(gBgBrush);
-    SAFE_DeleteObject(gBgBmp);
-    ime_wrap_term();
-}
-
 bool App::initialize()
 {
     if(! ime_wrap_init()) {
@@ -1006,8 +815,9 @@ bool App::initialize()
 	}
 	if(gBgBmp)    gBgBrush = CreatePatternBrush(gBgBmp);
 	if(!gBgBrush) gBgBrush = CreateSolidBrush(gColorTable[0]);
+    //
 
-    if(! create_console(opt)) {
+    if(!m_console->initialize(opt)){
         trace("create_console failed\n");
         return false;
     }
@@ -1015,7 +825,7 @@ bool App::initialize()
         trace("create_font failed\n");
         return false;
     }
-    if(! create_child_process(opt.getCmd(), opt.getCurDir())) {
+    if(! m_console->create_child_process(opt.getCmd(), opt.getCurDir())) {
         trace("create_child_process failed\n");
         return false;
     }
@@ -1061,8 +871,7 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_DESTROY:
 		KillTimer(hWnd, 0x3571);
 		PostQuitMessage(0);
-		if(WaitForSingleObject(gChild, 0) == WAIT_TIMEOUT)
-			TerminateProcess(gChild, 0);
+        m_console->onDestroy();
 		break;
 	case WM_TIMER:
 		onTimer(hWnd);
@@ -1090,21 +899,7 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		break;
 	case WM_MOUSEMOVE:
 		onMouseMove(hWnd, (short)LOWORD(lp),(short)HIWORD(lp));
-		// scroll when mouse is outside (craftware)
-		{
-			short x = (short)LOWORD(lp);
-			short y = (short)HIWORD(lp);
-
-			RECT rc;
-			GetClientRect(hWnd, &rc);
-
-			if( y<0 ) {
-				PostMessage(gConWnd, WM_MOUSEWHEEL, WHEEL_DELTA<<16, y<<16|x );
-			}
-			else if(y>=rc.bottom) {
-				PostMessage(gConWnd, WM_MOUSEWHEEL, -WHEEL_DELTA<<16, y<<16|x );
-			}
-		}
+        m_console->onMouseMove(hWnd, (short)LOWORD(lp),(short)HIWORD(lp));
 		break;
 	case WM_MBUTTONDOWN:
 	case WM_RBUTTONDOWN:
@@ -1134,11 +929,11 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_VSCROLL:
 	case WM_MOUSEWHEEL:
 		/* throw console window */
-		PostMessage(gConWnd, msg, wp, lp);
+		m_console->PostMessage(msg, wp, lp);
 		break;
 
 	case WM_IME_CHAR:
-		PostMessage(gConWnd, msg, wp, lp);
+		m_console->PostMessage(msg, wp, lp);
 		/* break */
 	case WM_CHAR:
 		selectionClear(hWnd);
@@ -1147,7 +942,7 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_SYSKEYDOWN:
 	case WM_SYSKEYUP:
 		if(wp != VK_RETURN) /* alt+enter */
-			PostMessage(gConWnd, msg, wp, lp);
+			m_console->PostMessage(msg, wp, lp);
 		break;
 	case WM_KEYDOWN:
 	case WM_KEYUP:
@@ -1159,7 +954,7 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				if(wp == VK_PRIOR)     sb = SB_PAGEUP;
 				else if(wp == VK_HOME) sb = SB_TOP;
 				else if(wp == VK_END)  sb = SB_BOTTOM;
-				PostMessage(gConWnd, WM_VSCROLL, sb, 0);
+				m_console->PostMessage(WM_VSCROLL, sb, 0);
 			}
 		}
 		else if(wp == VK_INSERT &&
@@ -1168,7 +963,7 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				onPasteFromClipboard(hWnd);
 		}
 		else {
-			PostMessage(gConWnd, msg, wp, lp);
+			m_console->PostMessage(msg, wp, lp);
 		}
 		break;
 	default:
@@ -1235,7 +1030,7 @@ void App::onPaint(HWND hWnd)
 
 	FillRect(hMemDC, &rc, gBgBrush);
 
-	if(gScreen && gCSI) {
+	if(gScreen) {
 		SetWindowOrgEx(hMemDC, -(int)gBorderSize, -(int)gBorderSize, NULL);
 		__draw_screen(hMemDC);
 		SetWindowOrgEx(hMemDC, 0, 0, NULL);
@@ -1250,18 +1045,10 @@ void App::onPaint(HWND hWnd)
 
 	EndPaint(hWnd, &ps);
 }
+
 void App::onTimer(HWND hWnd)
 {
-	if(WaitForSingleObject(gChild, 0) != WAIT_TIMEOUT) {
-		PostMessage(hWnd, WM_CLOSE, 0,0);
-		return;
-	}
-
-	/* refresh handle */
-	if(gStdOut) CloseHandle(gStdOut);
-	gStdOut = CreateFile(L"CONOUT$", GENERIC_READ|GENERIC_WRITE,
-			     FILE_SHARE_READ|FILE_SHARE_WRITE,
-			     NULL, OPEN_EXISTING, 0, NULL);
+    m_console->onTimer(hWnd);
 
 	/* title update */
 	static int timer_count = 0;
@@ -1278,12 +1065,10 @@ void App::onTimer(HWND hWnd)
 		}
 	}
 
-	CONSOLE_SCREEN_BUFFER_INFO* csi = new CONSOLE_SCREEN_BUFFER_INFO;
+	CONSOLE_SCREEN_BUFFER_INFO csi=m_console->GetConsoleScreenBufferInfo();
 	COORD	size;
-
-	GetConsoleScreenBufferInfo(gStdOut, csi);
-	size.X = CSI_WndCols(csi);
-	size.Y = CSI_WndRows(csi);
+	size.X = CSI_WndCols(&csi);
+	size.Y = CSI_WndRows(&csi);
 
 	/* copy screen buffer */
 	DWORD      nb = size.X * size.Y;
@@ -1294,33 +1079,31 @@ void App::onTimer(HWND hWnd)
 
 	/* ReadConsoleOuput - maximum read size 64kByte?? */
 	size.Y = 0x8000 / sizeof(CHAR_INFO) / size.X;
-	sr.Left  = csi->srWindow.Left;
-	sr.Right = csi->srWindow.Right;
-	sr.Top   = csi->srWindow.Top;
+	sr.Left  = csi.srWindow.Left;
+	sr.Right = csi.srWindow.Right;
+	sr.Top   = csi.srWindow.Top;
 	do {
 		sr.Bottom = sr.Top + size.Y -1;
-		if(sr.Bottom > csi->srWindow.Bottom) {
-			sr.Bottom = csi->srWindow.Bottom;
+		if(sr.Bottom > csi.srWindow.Bottom) {
+			sr.Bottom = csi.srWindow.Bottom;
 			size.Y = sr.Bottom - sr.Top +1;
 		}
-		ReadConsoleOutput_Unicode(gStdOut, ptr, size, pos, &sr);
+		m_console->ReadConsoleOutput_Unicode(ptr, size, pos, &sr);
 		ptr += size.X * size.Y;
 		sr.Top = sr.Bottom +1;
-	} while(sr.Top <= csi->srWindow.Bottom);
+	} while(sr.Top <= csi.srWindow.Bottom);
 
 	/* compare */
-	if(gScreen && gCSI &&
-	   !memcmp(csi, gCSI, sizeof(CONSOLE_SCREEN_BUFFER_INFO)) &&
+	if(gScreen &&
+	   !memcmp(&csi, &gCSI, sizeof(CONSOLE_SCREEN_BUFFER_INFO)) &&
 	   !memcmp(buffer, gScreen, sizeof(CHAR_INFO) * nb)) {
 		/* no modified */
 		delete [] buffer;
-		delete csi;
 		return;
 	}
 
 	/* swap buffer */
 	if(gScreen) delete [] gScreen;
-	if(gCSI) delete gCSI;
 	gScreen = buffer;
 	gCSI = csi;
 
@@ -1332,10 +1115,10 @@ void App::onTimer(HWND hWnd)
 		SCROLLINFO si;
 		si.cbSize = sizeof(si);
 		si.fMask = SIF_DISABLENOSCROLL | SIF_POS | SIF_PAGE | SIF_RANGE;
-		si.nPos = gCSI->srWindow.Top;
-		si.nPage = CSI_WndRows(gCSI);
+		si.nPos = gCSI.srWindow.Top;
+		si.nPage = CSI_WndRows(&gCSI);
 		si.nMin = 0;
-		si.nMax = gCSI->dwSize.Y-1;
+		si.nMax = gCSI.dwSize.Y-1;
 		SetScrollInfo(hWnd, SB_VERT, &si, TRUE);
 	}
 
@@ -1343,14 +1126,15 @@ void App::onTimer(HWND hWnd)
 		__set_ime_position(hWnd);
 	}
 
-	int w = CSI_WndCols(gCSI);
-	int h = CSI_WndRows(gCSI);
+	int w = CSI_WndCols(&gCSI);
+	int h = CSI_WndRows(&gCSI);
 	if(gWinW != w || gWinH != h) {
 		w = (w * gFontW) + (gBorderSize * 2) + (gFrame.right - gFrame.left);
 		h = (h * gFontH) + (gBorderSize * 2) + (gFrame.bottom - gFrame.top);
 		SetWindowPos(hWnd, NULL, 0,0,w,h, SWP_NOMOVE|SWP_NOZORDER);
 	}
 }
+
 bool App::create_window(ckOpt& opt)
 {
 	trace("create_window\n");
@@ -1362,7 +1146,6 @@ bool App::create_window(ckOpt& opt)
 	WNDCLASSEX wc;
 	DWORD	style = WS_OVERLAPPEDWINDOW;
 	DWORD	exstyle = WS_EX_ACCEPTFILES;
-	LONG	width, height;
 	LONG	posx, posy;
 
 	if(opt.isTranspColor() ||
@@ -1395,21 +1178,28 @@ bool App::create_window(ckOpt& opt)
         }
 
 	/* calc window size */
-	CONSOLE_SCREEN_BUFFER_INFO csi;
-	GetConsoleScreenBufferInfo(gStdOut, &csi);
+	CONSOLE_SCREEN_BUFFER_INFO csi=m_console->GetConsoleScreenBufferInfo();
 
 	AdjustWindowRectEx(&gFrame, style, FALSE, exstyle);
 	if(!gVScrollHide)
 		gFrame.right += GetSystemMetrics(SM_CXVSCROLL);
 
+	LONG	width, height;
 	gWinW = width  = csi.srWindow.Right  - csi.srWindow.Left + 1;
 	gWinH = height = csi.srWindow.Bottom - csi.srWindow.Top  + 1;
+
 	width  *= gFontW;
 	height *= gFontH;
+	DebugPrintf("%d\n", width);
+
 	width  += gBorderSize * 2;
 	height += gBorderSize * 2;
+	DebugPrintf("%d\n", width);
+
 	width  += gFrame.right  - gFrame.left;
 	height += gFrame.bottom - gFrame.top;
+	DebugPrintf("%d\n", width);
+
 
 	if(opt.isWinPos()) {
 		RECT	rc;
@@ -1466,47 +1256,6 @@ bool App::create_window(ckOpt& opt)
 	return(TRUE);
 }
 
-bool App::create_child_process(const char* cmd, const char* curdir)
-{
-	trace("create_child_process\n");
-
-	char* buf = NULL;
-
-	if(!cmd || !cmd[0]) {
-		buf = new char[32768];
-		buf[0] = 0;
-		if(!GetEnvironmentVariableA("COMSPEC", buf, 32768))
-			strcpy(buf, "cmd.exe");
-	}
-	else {
-		buf = new char[ strlen(cmd)+1 ];
-		strcpy(buf, cmd);
-	}
-
-	PROCESS_INFORMATION pi;
-	STARTUPINFOA si;
-	memset(&si, 0, sizeof(si));
-	si.cb = sizeof(si);
-	si.dwFlags = STARTF_USESTDHANDLES;
-	si.hStdInput  = gStdIn;
-	si.hStdOutput = gStdOut;
-	si.hStdError  = gStdErr;
-
-	if (curdir)
-		if (char *p = strstr((char*)curdir, ":\""))
-			*(p+1) = '\\';
-
-	if(! CreateProcessA(NULL, buf, NULL, NULL, TRUE,
-			    0, NULL, curdir, &si, &pi)) {
-		delete [] buf;
-		return(FALSE);
-	}
-	delete [] buf;
-	CloseHandle(pi.hThread);
-	gChild = pi.hProcess;
-	return(TRUE);
-}
-
 bool App::create_font(const char* name, int height)
 {
 	trace("create_font\n");
@@ -1554,97 +1303,6 @@ bool App::create_font(const char* name, int height)
 	return(TRUE);
 }
 
-bool App::create_console(ckOpt& opt)
-{
-    const char*	conf_title;
-    LPWSTR	title;
-
-    conf_title = opt.getTitle();
-    if(!conf_title || !conf_title[0]){
-        title = L"ckw";
-    }else{
-        title = new wchar_t[ strlen(conf_title)+1 ];
-        ZeroMemory(title, sizeof(wchar_t) * (strlen(conf_title)+1));
-        MultiByteToWideChar(CP_ACP, 0, conf_title, (int)strlen(conf_title), title, (int)(sizeof(wchar_t) * (strlen(conf_title)+1)) );
-    }
-
-    __hide_alloc_console();
-
-    SetConsoleTitle(title);
-
-    SetConsoleCtrlHandler(sig_handler, TRUE);
-
-    SECURITY_ATTRIBUTES sa;
-    sa.nLength = sizeof(sa);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle = TRUE;
-
-    gStdIn  = CreateFile(L"CONIN$",  GENERIC_READ|GENERIC_WRITE,
-            FILE_SHARE_READ|FILE_SHARE_WRITE,
-            &sa, OPEN_EXISTING, 0, NULL);
-    gStdOut = CreateFile(L"CONOUT$",  GENERIC_READ|GENERIC_WRITE,
-            FILE_SHARE_READ|FILE_SHARE_WRITE,
-            &sa, OPEN_EXISTING, 0, NULL);
-    gStdErr = CreateFile(L"CONOUT$",  GENERIC_READ|GENERIC_WRITE,
-            FILE_SHARE_READ|FILE_SHARE_WRITE,
-            &sa, OPEN_EXISTING, 0, NULL);
-
-    if(!gConWnd || !gStdIn || !gStdOut || !gStdErr)
-        return(FALSE);
-
-    HINSTANCE hLib;
-    hLib = LoadLibraryW( L"KERNEL32.DLL" );
-    if (hLib == NULL)
-        goto done;
-
-#define GetProc( proc ) \
-    do { \
-        proc = (proc##T)GetProcAddress( hLib, #proc ); \
-        if (proc == NULL) \
-        goto freelib; \
-    } while (0)
-    GetProc( GetConsoleFontInfo );
-    GetProc( GetNumberOfConsoleFonts );
-    GetProc( SetConsoleFont );
-#undef GetProc
-
-    {
-        CONSOLE_FONT font[MAX_FONTS];
-        DWORD fonts;
-        fonts = GetNumberOfConsoleFonts();
-        if (fonts > MAX_FONTS)
-            fonts = MAX_FONTS;
-
-        GetConsoleFontInfo(gStdOut, 0, fonts, font);
-        CONSOLE_FONT minimalFont = { 0, {0, 0}};
-        for(DWORD i=0;i<fonts;i++){
-            if(minimalFont.dim.X < font[i].dim.X && minimalFont.dim.Y < font[i].dim.Y)
-                minimalFont = font[i];
-        }
-        SetConsoleFont(gStdOut, minimalFont.index);
-    }
-freelib:
-    FreeLibrary( hLib );
-done:
-
-    /* set buffer & window size */
-    COORD size;
-    SMALL_RECT sr = {0,0,0,0};
-    SetConsoleWindowInfo(gStdOut, TRUE, &sr);
-    size.X = opt.getWinCharW();
-    size.Y = opt.getWinCharH() + opt.getSaveLines();
-    SetConsoleScreenBufferSize(gStdOut, size);
-    sr.Left = 0;
-    sr.Right = opt.getWinCharW()-1;
-    sr.Top = size.Y - opt.getWinCharH();
-    sr.Bottom = size.Y-1;
-    SetConsoleWindowInfo(gStdOut, TRUE, &sr);
-    size.X = sr.Left;
-    size.Y = sr.Top;
-    SetConsoleCursorPosition(gStdOut, size);
-    return(TRUE);
-}
-
 void App::onPasteFromClipboard(HWND hWnd)
 {
 	bool	result = true;
@@ -1664,7 +1322,7 @@ void App::onPasteFromClipboard(HWND hWnd)
 	if(result && !(ptr = (wchar_t*)GlobalLock(hMem)))
 		result = false;
 	if(result) {
-		__write_console_input(ptr, (DWORD)wcslen(ptr));
+		m_console->__write_console_input(ptr, (DWORD)wcslen(ptr));
 		GlobalUnlock(hMem);
 	}
 	CloseClipboard();
@@ -1696,7 +1354,7 @@ void App::onDropFile(HDROP hDrop)
 		}
 		wp[len++] = L' ';
 
-		__write_console_input(wp, len);
+		m_console->__write_console_input(wp, len);
 	}
 	DragFinish(hDrop);
 }
@@ -1743,38 +1401,6 @@ bool App::onSysCommand(HWND hWnd, DWORD id)
         return onConfigMenuCommand(hWnd, id);
     }
 	return(FALSE);
-}
-
-void App::__write_console_input(LPCWSTR str, DWORD length)
-{
-	if(!str || !length) return;
-
-	INPUT_RECORD *p, *buf;
-	DWORD	i = 0;
-	p = buf = new INPUT_RECORD[ length ];
-
-	for( ; i < length ; i++, p++) {
-		p->EventType = KEY_EVENT;
-		p->Event.KeyEvent.bKeyDown = TRUE;
-		p->Event.KeyEvent.wRepeatCount = 1;
-		p->Event.KeyEvent.wVirtualKeyCode = 0;
-		p->Event.KeyEvent.wVirtualScanCode = 0;
-		p->Event.KeyEvent.uChar.UnicodeChar = 0;
-		p->Event.KeyEvent.dwControlKeyState = 0;
-		if(*str == '\r') {
-			str++;
-			length--;
-		}
-		if(*str == '\n') {
-			p->Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
-			str++;
-		} else {
-			p->Event.KeyEvent.uChar.UnicodeChar = *str++;
-		}
-	}
-
-	WriteConsoleInput(gStdIn, buf, length, &length);
-	delete [] buf;
 }
 
 bool App::onTopMostMenuCommand(HWND hWnd)
@@ -1856,7 +1482,7 @@ void App::onLBtnDown(HWND hWnd, int x, int y)
 		prevY = y;
 	}
 
-	if(!gScreen || !gCSI)
+	if(!gScreen)
 		return;
 	window_to_charpos(x, y);
 	SetCapture(hWnd);

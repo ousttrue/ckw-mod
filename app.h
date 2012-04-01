@@ -2,19 +2,14 @@
 #define APP_H
 
 #include <windows.h>
+#include <memory>
 
 
 class ckOpt;
+class Console;
 class App
 {
-    // console
-    HANDLE	gStdIn;	
-    HANDLE	gStdOut;
-    HANDLE	gStdErr;
-    HWND	gConWnd;
-
-    // child process
-    HANDLE	gChild;	
+    std::shared_ptr<Console> m_console;
 
     // font IME
     LOGFONT	gFontLog;	
@@ -36,7 +31,7 @@ class App
     DWORD	gBorderSize;
 
     // screen buffer - copy
-    CONSOLE_SCREEN_BUFFER_INFO* gCSI;
+    CONSOLE_SCREEN_BUFFER_INFO gCSI;
 
     CHAR_INFO *gScreen;
     wchar_t *gTitle;
@@ -54,6 +49,13 @@ class App
 
     // IME-status
     bool gImeOn;
+
+    // selection
+    int	gSelectMode;
+    // pick point
+    COORD	gSelectPos;
+    // expanded selection area
+    SMALL_RECT gSelectRect;
 
 public:
     App();
@@ -73,9 +75,7 @@ public:
 private:
     // 初期化
     bool create_window(ckOpt& opt);
-    bool create_child_process(const char* cmd, const char* curdir);
     bool create_font(const char* name, int height);
-    bool create_console(ckOpt& opt);
     
     // イベントハンドラ
     void onSizing(HWND hWnd, DWORD side, LPRECT rc);
@@ -91,14 +91,12 @@ private:
     void onLBtnUp(HWND hWnd, int x, int y);
     void onMouseMove(HWND hWnd, int x, int y);
 
-    void __hide_alloc_console();
     bool __select_invalid();
     void __draw_screen(HDC hDC);
     void __draw_invert_char_rect(HDC hDC, RECT& rc);
     void __draw_selection(HDC hDC);
     void __set_ime_position(HWND hWnd);
     void __set_console_window_size(LONG cols, LONG rows);
-    void __write_console_input(LPCWSTR str, DWORD length);
     wchar_t * getAllString();
     void copyAllStringToClipboard(HWND hWnd);
     void __select_expand();
@@ -106,6 +104,7 @@ private:
     void __select_word_expand_right();
     void __select_char_expand();
     void window_to_charpos(int& x, int& y);
+
     wchar_t* selectionGetString();
     bool selectionGetArea(SMALL_RECT& sr);
     void selectionClear(HWND hWnd);

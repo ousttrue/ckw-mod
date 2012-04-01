@@ -12,6 +12,8 @@ configuration "gmake"
 do
   buildoptions { 
       "-Wall", 
+      --"-std=c++0x",
+      "-std=gnu++0x",
   }
   linkoptions {
       --"-Wl,--entry,_wWinMain,--enable-stdcall-fixup",

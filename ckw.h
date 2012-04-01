@@ -33,4 +33,35 @@
 #define CSI_WndCols(csi) ((csi)->srWindow.Right - (csi)->srWindow.Left +1)
 #define CSI_WndRows(csi) ((csi)->srWindow.Bottom - (csi)->srWindow.Top +1)
 
+
+#define SAFE_CloseHandle(handle) \
+	if(handle) { CloseHandle(handle); handle = NULL; }
+
+#define SAFE_DeleteObject(handle) \
+	if(handle) { DeleteObject(handle); handle = NULL; }
+
+
+#if 0
+#include <stdio.h>
+void trace(const char *msg)
+{
+	fputs(msg, stdout);
+	fflush(stdout);
+}
+#else
+#define trace(msg)
+#endif
+
+#include <stdio.h>
+inline void DebugPrintf(const char *format, ...)
+{
+	va_list ap;
+    va_start(ap, format);
+    char allocatedBuffer[1024];
+    vsprintf(allocatedBuffer, format, ap);
+    va_end(ap);
+
+	OutputDebugStringA(allocatedBuffer);
+}
+
 #endif /* __CKW_H__ */
