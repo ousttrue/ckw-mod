@@ -33,6 +33,9 @@ do
     flags {
         'WinMain',
     }
+    defines {
+        '_CRT_SECURE_NO_WARNINGS',
+    }
     linkoptions {}
 end
 

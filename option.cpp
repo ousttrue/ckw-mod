@@ -25,8 +25,8 @@
 static bool lookupColor(const char *str, COLORREF& ret)
 {
 	typedef struct {
-		COLORREF	color;
-		char		*name;
+		COLORREF color;
+		const char *name;
 	} COLOR;
 	static const COLOR colors[] = {
 		{ RGB(0xF0,0xF8,0xFF), "alice blue" },
@@ -1017,7 +1017,7 @@ int	ckOpt::setOption(const char *name, const char *value, bool rsrc)
 	CHK_MISC("cursorImeColor",	"cri",		lookupColor(value, m_colorCursorIme));
 	CHK_MISC("backgroundBitmap",	"bitmap",	m_bgBmp = value);
 	CHK_MISC("geometry",		"g",		geometry(value));
-	CHK_BOOL(NULL, 			"iconic",	m_isIconic);
+	CHK_BOOL("", 			"iconic",	m_isIconic);
 	CHK_MISC("font",		"fn",		m_font = value);
 	CHK_MISC("fontSize",		"fs",		m_fontSize = atoi(value));
 	CHK_BOOL("scrollHide",		"sh",		m_scrollHide);

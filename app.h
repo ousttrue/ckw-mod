@@ -48,7 +48,7 @@ class App
     BOOL	gVScrollHide;
 
     // IME-status
-    bool gImeOn;
+    BOOL gImeOn;
 
     // selection
     int	gSelectMode;

@@ -33,15 +33,15 @@ static const wchar_t WORD_BREAK_CHARS[] = {
 
 App::App()
     :
+        m_console(new Console),
+        gBorderSize(0),
         gScreen(NULL),
         gTitle(NULL),
-        gBorderSize(0),
-        gImeOn(false),
         gBgBmp(NULL),
         gBgBrush(NULL),
         gLineSpace(0),
         gVScrollHide(false),
-        m_console(new Console)
+        gImeOn(FALSE)
 {
     gColorTable=new COLORREF[ kColorMax ];
 
@@ -368,7 +368,7 @@ void	sysmenu_init_subconfig(HWND hWnd, HMENU hMenu)
 	mii.fType = MFT_STRING;
 	mii.wID = IDM_CONFIG_SELECT;
 	mii.hSubMenu = hSubMenu;
-	mii.dwTypeData = L"Config (&O)";
+	mii.dwTypeData=L"Config (&O)";
 	mii.cch = (UINT) wcslen(mii.dwTypeData);
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
 }
@@ -490,7 +490,7 @@ void	sysmenu_init_topmost(HWND hWnd, HMENU hMenu)
 
 	mii.fType = MFT_STRING;
 	mii.wID = IDM_TOPMOST;
-	mii.dwTypeData = L"TopMost (&T)";
+	mii.dwTypeData=L"TopMost (&T)";
 	mii.cch = (UINT) wcslen(mii.dwTypeData);
 
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
@@ -509,13 +509,13 @@ void	sysmenu_init(HWND hWnd)
 
 	mii.fType = MFT_STRING;
 	mii.wID = IDM_COPYALL;
-	mii.dwTypeData = L"Copy All(&C)";
+	mii.dwTypeData=L"Copy All(&C)";
 	mii.cch = (UINT) wcslen(mii.dwTypeData);
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
 
 	mii.fType = MFT_STRING;
 	mii.wID = IDM_NEW;
-	mii.dwTypeData = L"New (&N)";
+	mii.dwTypeData=L"New (&N)";
 	mii.cch = (UINT) wcslen(mii.dwTypeData);
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
 
@@ -531,7 +531,7 @@ void	sysmenu_init(HWND hWnd)
 
 	mii.fType = MFT_STRING;
 	mii.wID = IDM_ABOUT;
-	mii.dwTypeData = L"About (&A)";
+	mii.dwTypeData=L"About (&A)";
 	mii.cch = (UINT) wcslen(mii.dwTypeData);
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
 
@@ -1140,10 +1140,7 @@ bool App::create_window(ckOpt& opt)
 	trace("create_window\n");
 
 	HINSTANCE hInstance = GetModuleHandle(NULL);
-	LPWSTR	className = L"CkwWindowClass";
-	const char*	conf_title;
-	LPWSTR	title;
-	WNDCLASSEX wc;
+	LPCWSTR	className = L"CkwWindowClass";
 	DWORD	style = WS_OVERLAPPEDWINDOW;
 	DWORD	exstyle = WS_EX_ACCEPTFILES;
 	LONG	posx, posy;
@@ -1168,14 +1165,14 @@ bool App::create_window(ckOpt& opt)
 	if(opt.isIconic())
 		style |= WS_MINIMIZE;
 
-	conf_title = opt.getTitle();
-	if(!conf_title || !conf_title[0]){
-          title = L"ckw";
-        }else{
-          title = new wchar_t[ strlen(conf_title)+1 ];
-          ZeroMemory(title, sizeof(wchar_t) * (strlen(conf_title)+1));
-          MultiByteToWideChar(CP_ACP, 0, conf_title, (int)strlen(conf_title), title, (int)(sizeof(wchar_t) * (strlen(conf_title)+1)) );
-        }
+	const char*	conf_title = opt.getTitle();
+    std::wstring title(L"ckw");
+    if(conf_title && conf_title[0]){
+        std::vector<wchar_t> buf(strlen(conf_title), 0);
+        MultiByteToWideChar(CP_ACP, 0, conf_title, (int)strlen(conf_title), 
+                &buf[0], (int)(sizeof(wchar_t) * buf.size()));
+        title=std::wstring(buf.begin(), buf.end());
+    }
 
 	/* calc window size */
 	CONSOLE_SCREEN_BUFFER_INFO csi=m_console->GetConsoleScreenBufferInfo();
@@ -1221,6 +1218,7 @@ bool App::create_window(ckOpt& opt)
 	}
 
 	/**/
+	WNDCLASSEX wc;
 	memset(&wc, 0, sizeof(wc));
 	wc.cbSize = sizeof(wc);
 	wc.style = 0;
@@ -1232,18 +1230,17 @@ bool App::create_window(ckOpt& opt)
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = CreateSolidBrush(gColorTable[0]);
 	wc.lpszMenuName = NULL;
-	wc.lpszClassName = className;
+	wc.lpszClassName=className;
 	wc.hIconSm = NULL;
 	if(! RegisterClassEx(&wc))
 		return(FALSE);
 
-	HWND hWnd = CreateWindowEx(exstyle, className, title, style,
+	HWND hWnd = CreateWindowEx(exstyle, className, title.c_str(), style,
 				   posx, posy, width, height,
 				   NULL, NULL, hInstance, this);
-	if(!hWnd){
-		delete [] title;
-		return(FALSE);
-        }
+    if(!hWnd){
+        return(FALSE);
+    }
 
 	sysmenu_init(hWnd);
 
@@ -1408,12 +1405,10 @@ bool App::onTopMostMenuCommand(HWND hWnd)
 	HMENU hMenu = GetSystemMenu(hWnd, FALSE);
 
 	UINT uState = GetMenuState( hMenu, IDM_TOPMOST, MF_BYCOMMAND);
-	DWORD dwExStyle = GetWindowLong(hWnd,GWL_EXSTYLE);
-	if( uState & MFS_CHECKED )
-	{
-		SetWindowPos(hWnd, HWND_NOTOPMOST,NULL,NULL,NULL,NULL,SWP_NOMOVE | SWP_NOSIZE); 
+	if( uState & MFS_CHECKED ) {
+		SetWindowPos(hWnd, HWND_NOTOPMOST,0, 0, 0, 0,SWP_NOMOVE | SWP_NOSIZE); 
 	}else{
-		SetWindowPos(hWnd, HWND_TOPMOST,NULL,NULL,NULL,NULL,SWP_NOMOVE | SWP_NOSIZE); 
+		SetWindowPos(hWnd, HWND_TOPMOST,0, 0, 0, 0,SWP_NOMOVE | SWP_NOSIZE); 
 	}
 
 	changeStateTopMostMenu(hWnd, hMenu);

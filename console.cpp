@@ -71,13 +71,16 @@ static BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
 }
 
 
+//////////////////////////////////////////////////////////////////////////////
+// Console
+//////////////////////////////////////////////////////////////////////////////
 Console::Console()
     :
-        gChild(NULL),	
         gStdIn(NULL),	
         gStdOut(NULL),
         gStdErr(NULL),
-        gConWnd(NULL)
+        gConWnd(NULL),
+        gChild(NULL)
 {
 }
 
