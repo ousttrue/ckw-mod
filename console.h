@@ -2,6 +2,7 @@
 #define CONSOLE_H
 
 #include <windows.h>
+#include <memory>
 
 
 class ckOpt;
@@ -35,7 +36,7 @@ public:
     Console();
     ~Console();
     void onDestroy();
-    bool initialize(ckOpt &opt);
+    bool initialize(std::shared_ptr<ckOpt> opt);
     void __set_console_window_size(LONG cols, LONG rows);
     bool create_child_process(const char* cmd, const char* curdir);
     void __write_console_input(LPCWSTR str, DWORD length);

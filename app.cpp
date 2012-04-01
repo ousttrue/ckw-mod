@@ -18,7 +18,8 @@ App::App()
         gBgBrush(NULL),
         gLineSpace(0),
         gVScrollHide(false),
-        gImeOn(FALSE)
+        gImeOn(FALSE),
+        m_opt(new ckOpt)
 {
     gColorTable=new COLORREF[ kColorMax ];
 
@@ -110,14 +111,18 @@ void	sysmenu_init_subconfig(HWND hWnd, HMENU hMenu)
 	InsertMenuItem(hMenu, SC_CLOSE, FALSE, &mii);
 }
 
-void reloadConfig(wchar_t *path)
+void App::reloadConfig(wchar_t *path)
 {
 	char filepath[MAX_PATH+1];
 	wcstombs(filepath, path, MAX_PATH);
 
-	ckOpt opt;
-	opt.setFile(filepath);
-    opt.initialize();
+	m_opt->setFile(filepath);
+
+    if(!m_opt->initialize()){
+        return;
+    }
+
+    applyConf();
 }
 
 INT_PTR CALLBACK AboutDlgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -444,53 +449,57 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 }
 
 
+void App::applyConf()
+{
+	/* set */
+    for(int i = kColor0 ; i <= kColor15 ; i++){
+        gColorTable[i] = m_opt->getColor(i);
+    }
+	gColorTable[kColor7] = m_opt->getColorFg();
+	gColorTable[kColor0] = m_opt->getColorBg();
+
+	gColorTable[kColorCursorBg] = m_opt->getColorCursor();
+	gColorTable[kColorCursorFg] = ~gColorTable[kColorCursorBg] & 0xFFFFFF;
+	gColorTable[kColorCursorImeBg] = m_opt->getColorCursorIme();
+	gColorTable[kColorCursorImeFg] = ~gColorTable[kColorCursorImeBg] & 0xFFFFFF;
+
+	gBorderSize = m_opt->getBorderSize();
+	gLineSpace = m_opt->getLineSpace();
+
+	if(m_opt->getBgBmp()) {
+		gBgBmp = (HBITMAP)LoadImageA(NULL, m_opt->getBgBmp(),
+				IMAGE_BITMAP, 0,0, LR_LOADFROMFILE);
+	}
+	if(gBgBmp)    gBgBrush = CreatePatternBrush(gBgBmp);
+	if(!gBgBrush) gBgBrush = CreateSolidBrush(gColorTable[0]);
+}
+
+
 bool App::initialize()
 {
     if(! ime_wrap_init()) {
         trace("ime_wrap_init failed\n");
     }
 
-    ckOpt opt;
-    if(! opt.initialize()) {
+    if(! m_opt->initialize()) {
         return false;
     }
 
-	/* set */
-    for(int i = kColor0 ; i <= kColor15 ; i++){
-        gColorTable[i] = opt.getColor(i);
-    }
-	gColorTable[kColor7] = opt.getColorFg();
-	gColorTable[kColor0] = opt.getColorBg();
+    applyConf();
 
-	gColorTable[kColorCursorBg] = opt.getColorCursor();
-	gColorTable[kColorCursorFg] = ~gColorTable[kColorCursorBg] & 0xFFFFFF;
-	gColorTable[kColorCursorImeBg] = opt.getColorCursorIme();
-	gColorTable[kColorCursorImeFg] = ~gColorTable[kColorCursorImeBg] & 0xFFFFFF;
-
-	gBorderSize = opt.getBorderSize();
-	gLineSpace = opt.getLineSpace();
-
-	if(opt.getBgBmp()) {
-		gBgBmp = (HBITMAP)LoadImageA(NULL, opt.getBgBmp(),
-				IMAGE_BITMAP, 0,0, LR_LOADFROMFILE);
-	}
-	if(gBgBmp)    gBgBrush = CreatePatternBrush(gBgBmp);
-	if(!gBgBrush) gBgBrush = CreateSolidBrush(gColorTable[0]);
-    //
-
-    if(!m_console->initialize(opt)){
+    if(!m_console->initialize(m_opt)){
         trace("create_console failed\n");
         return false;
     }
-    if(! create_font(opt.getFont(), opt.getFontSize())) {
+    if(! create_font(m_opt->getFont(), m_opt->getFontSize())) {
         trace("create_font failed\n");
         return false;
     }
-    if(! m_console->create_child_process(opt.getCmd(), opt.getCurDir())) {
+    if(! m_console->create_child_process(m_opt->getCmd(), m_opt->getCurDir())) {
         trace("create_child_process failed\n");
         return false;
     }
-    if(! create_window(opt)) {
+    if(! create_window()) {
         trace("create_window failed\n");
         return false;
     }
@@ -741,7 +750,7 @@ void App::onPaint(HWND hWnd)
 	EndPaint(hWnd, &ps);
 }
 
-bool App::create_window(ckOpt& opt)
+bool App::create_window()
 {
 	trace("create_window\n");
 
@@ -751,27 +760,27 @@ bool App::create_window(ckOpt& opt)
 	DWORD	exstyle = WS_EX_ACCEPTFILES;
 	LONG	posx, posy;
 
-	if(opt.isTranspColor() ||
-	   (0 < opt.getTransp() && opt.getTransp() < 255))
+	if(m_opt->isTranspColor() ||
+	   (0 < m_opt->getTransp() && m_opt->getTransp() < 255))
 		exstyle |= WS_EX_LAYERED;
 
-	if(opt.isScrollRight())
+	if(m_opt->isScrollRight())
 		exstyle |= WS_EX_RIGHTSCROLLBAR;
 	else
 		exstyle |= WS_EX_LEFTSCROLLBAR;
 
-	if(opt.isTopMost())
+	if(m_opt->isTopMost())
 		exstyle |= WS_EX_TOPMOST;
 
-	if(opt.isScrollHide() || opt.getSaveLines() < 1)
+	if(m_opt->isScrollHide() || m_opt->getSaveLines() < 1)
 		gVScrollHide = TRUE;
 	else
 		style |= WS_VSCROLL;
 
-	if(opt.isIconic())
+	if(m_opt->isIconic())
 		style |= WS_MINIMIZE;
 
-	const char*	conf_title = opt.getTitle();
+	const char*	conf_title = m_opt->getTitle();
     std::wstring title(L"ckw");
     if(conf_title && conf_title[0]){
         std::vector<wchar_t> buf(strlen(conf_title), 0);
@@ -803,15 +812,15 @@ bool App::create_window(ckOpt& opt)
 	DebugPrintf("%d\n", width);
 
 
-	if(opt.isWinPos()) {
+	if(m_opt->isWinPos()) {
 		RECT	rc;
 		SystemParametersInfo(SPI_GETWORKAREA,0,(LPVOID)&rc,0);
-		posx = opt.getWinPosX();
+		posx = m_opt->getWinPosX();
 		if(posx < 0) posx = rc.right - (width - posx -1);
 		else         posx += rc.left;
 		if(posx < rc.left) posx = rc.left;
 		if(posx > rc.right-5) posx = rc.right -5;
-		posy = opt.getWinPosY();
+		posy = m_opt->getWinPosY();
 		if(posy < 0) posy = rc.bottom - (height - posy -1);
 		else         posy += rc.top;
 		if(posy < rc.top) posy = rc.top;
@@ -849,10 +858,10 @@ bool App::create_window(ckOpt& opt)
 
 	sysmenu_init(hWnd);
 
-	if(0 < opt.getTransp() && opt.getTransp() < 255)
-		SetLayeredWindowAttributes(hWnd, 0, opt.getTransp(), LWA_ALPHA);
-	else if(opt.isTranspColor())
-		SetLayeredWindowAttributes(hWnd, opt.getTranspColor(), 255, LWA_COLORKEY);
+	if(0 < m_opt->getTransp() && m_opt->getTransp() < 255)
+		SetLayeredWindowAttributes(hWnd, 0, m_opt->getTransp(), LWA_ALPHA);
+	else if(m_opt->isTranspColor())
+		SetLayeredWindowAttributes(hWnd, m_opt->getTranspColor(), 255, LWA_COLORKEY);
 
 	ShowWindow(hWnd, SW_SHOW);
 	return(TRUE);

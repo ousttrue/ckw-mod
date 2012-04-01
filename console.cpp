@@ -589,11 +589,11 @@ bool __hide_alloc_console()
     return bResult;
 }
 
-bool Console::initialize(ckOpt& opt)
+bool Console::initialize(std::shared_ptr<ckOpt> opt)
 {
     std::wstring title=L"ckw";
 
-    std::string conf_title = opt.getTitle() ? opt.getTitle() : "";
+    std::string conf_title = opt->getTitle() ? opt->getTitle() : "";
     if(!conf_title.empty()){
         std::vector<wchar_t> buf(conf_title.size(), 0);
         MultiByteToWideChar(CP_ACP, 0, &conf_title[0], (int)conf_title.size(), 
@@ -676,12 +676,12 @@ done:
     SMALL_RECT sr = {0,0,0,0};
     SetConsoleWindowInfo(gStdOut, TRUE, &sr);
     COORD size;
-    size.X = opt.getWinCharW();
-    size.Y = opt.getWinCharH() + opt.getSaveLines();
+    size.X = opt->getWinCharW();
+    size.Y = opt->getWinCharH() + opt->getSaveLines();
     SetConsoleScreenBufferSize(gStdOut, size);
     sr.Left = 0;
-    sr.Right = opt.getWinCharW()-1;
-    sr.Top = size.Y - opt.getWinCharH();
+    sr.Right = opt->getWinCharW()-1;
+    sr.Top = size.Y - opt->getWinCharH();
     sr.Bottom = size.Y-1;
     SetConsoleWindowInfo(gStdOut, TRUE, &sr);
     size.X = sr.Left;

@@ -42,6 +42,9 @@ class App
     // IME-status
     BOOL gImeOn;
 
+    // config
+    std::shared_ptr<ckOpt> m_opt;
+
 public:
     App();
 
@@ -59,7 +62,7 @@ public:
 
 private:
     // 初期化
-    bool create_window(ckOpt& opt);
+    bool create_window();
     bool create_font(const char* name, int height);
     
     // イベントハンドラ
@@ -78,6 +81,8 @@ private:
     void __set_ime_position(HWND hWnd);
 
     COORD window_to_charpos(int x, int y);
+    void applyConf();
+    void reloadConfig(wchar_t *path);
 };
 
 
