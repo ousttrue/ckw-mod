@@ -3,6 +3,8 @@
 
 #include <windows.h>
 #include <memory>
+#include <string>
+#include <vector>
 
 
 class ckOpt;
@@ -26,10 +28,11 @@ class App
     // internal border
     DWORD	gBorderSize;
 
-    wchar_t *gTitle;
+    // window title
+    std::wstring gTitle;
 
     // index color
-    COLORREF *gColorTable;
+    std::vector<COLORREF> gColorTable;
 
     // background image
     HBITMAP gBgBmp;

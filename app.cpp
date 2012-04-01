@@ -13,7 +13,7 @@ App::App()
     :
         m_console(new Console),
         gBorderSize(0),
-        gTitle(NULL),
+        gColorTable(kColorMax, 0),
         gBgBmp(NULL),
         gBgBrush(NULL),
         gLineSpace(0),
@@ -21,8 +21,6 @@ App::App()
         gImeOn(FALSE),
         m_opt(new ckOpt)
 {
-    gColorTable=new COLORREF[ kColorMax ];
-
     gFrame.left=0;
     gFrame.right=0;
     gFrame.top=0;
@@ -31,13 +29,6 @@ App::App()
 
 App::~App()
 {
-    if(gColorTable){
-        delete [] gColorTable;
-    }
-    if(gTitle) {
-        delete [] gTitle;
-        gTitle = NULL;
-    }
     SAFE_DeleteObject(gFont);
     SAFE_DeleteObject(gBgBrush);
     SAFE_DeleteObject(gBgBmp);
@@ -548,15 +539,14 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
             /* title update */
             static int timer_count = 0;
             if((++timer_count & 0xF) == 1) {
-                wchar_t *str = new wchar_t[256];
+                wchar_t str[256]={0};
                 GetConsoleTitle(str, 256);
-                if(gTitle && !wcscmp(gTitle, str)) {
-                    delete [] str;
+                if(!gTitle.empty() && !wcscmp(gTitle.c_str(), str)) {
+                    // •Ï‰»‚È‚µ
                 }
                 else {
-                    delete [] gTitle;
                     gTitle = str;
-                    SetWindowText(hWnd, gTitle);
+                    SetWindowText(hWnd, gTitle.c_str());
                 }
             }
 
