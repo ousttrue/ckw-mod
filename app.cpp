@@ -8,6 +8,26 @@
 #include <iostream>
 
 
+class Child
+{
+public:
+    Child()
+    {
+    }
+
+    ~Child()
+    {
+    }
+
+    bool create_child_process()
+    {
+
+
+        return true;
+    }
+};
+
+
 INT_PTR CALLBACK AboutDlgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch(msg) {
@@ -51,7 +71,8 @@ App::App()
         gBgBrush(NULL),
         gLineSpace(0),
         gVScrollHide(false),
-        gImeOn(FALSE)
+        gImeOn(FALSE),
+        m_child(new Child)
 {
     gFrame.left=0;
     gFrame.right=0;
@@ -112,8 +133,14 @@ bool App::initialize()
         trace("create_font failed\n");
         return false;
     }
+
     if(! create_window()) {
         trace("create_window failed\n");
+        return false;
+    }
+
+    if(!m_child->create_child_process()){
+        trace("create_child_process failed\n");
         return false;
     }
 

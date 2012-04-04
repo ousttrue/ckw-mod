@@ -64,6 +64,41 @@ end
 
 configuration {}
 
+
+------------------------------------------------------------------------------
+-- ckw lib
+------------------------------------------------------------------------------
+project "core"
+--language "C"
+language "C++"
+kind "StaticLib"
+--kind "DynamicLib"
+--kind "ConsoleApp"
+--kind "WindowedApp"
+flags {
+    "Unicode",
+}
+files {
+    "*.cpp", "*.h",
+}
+excludes {
+    "main.cpp",
+    "mainc.cpp",
+}
+defines {
+    "UNICODE",
+    "_UNICODE",
+    "_WIN32_WINNT=0x0500",
+}
+includedirs {
+}
+libdirs {
+}
+links {
+    'Shlwapi',
+}
+
+
 ------------------------------------------------------------------------------
 -- ckw child
 ------------------------------------------------------------------------------
@@ -78,10 +113,7 @@ flags {
     "Unicode",
 }
 files {
-    "*.cpp", "*.h",
-}
-excludes {
-    "main.cpp",
+    "mainc.cpp",
 }
 defines {
     "UNICODE",
@@ -93,6 +125,7 @@ includedirs {
 libdirs {
 }
 links {
+    "core",
     'Shlwapi',
 }
 
@@ -111,10 +144,7 @@ flags {
     "Unicode",
 }
 files {
-    "*.cpp", "*.h", "*.rc",
-}
-excludes {
-    "mainc.cpp",
+    "main.cpp", "rsrc.rc",
 }
 defines {
     "UNICODE",
@@ -126,6 +156,7 @@ includedirs {
 libdirs {
 }
 links {
+    "core",
     'Shlwapi',
 }
 

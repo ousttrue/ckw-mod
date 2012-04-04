@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 class ckOpt;
-
+class Child;
 
 ///
 /// ChildAppを起動し、メッセージをやり取りする
@@ -45,6 +45,8 @@ class App : public BaseApp
 
     // IME-status
     BOOL gImeOn;
+
+    std::shared_ptr<Child> m_child;
 
 public:
     App();

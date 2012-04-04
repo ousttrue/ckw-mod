@@ -6,21 +6,26 @@ ifndef config
 endif
 export config
 
-PROJECTS := ckwc ckw
+PROJECTS := core ckwc ckw
 
 .PHONY: all clean help $(PROJECTS)
 
 all: $(PROJECTS)
 
-ckwc: 
+core: 
+	@echo "==== Building core ($(config)) ===="
+	@${MAKE} --no-print-directory -C . -f core.make
+
+ckwc: core
 	@echo "==== Building ckwc ($(config)) ===="
 	@${MAKE} --no-print-directory -C . -f ckwc.make
 
-ckw: 
+ckw: core
 	@echo "==== Building ckw ($(config)) ===="
 	@${MAKE} --no-print-directory -C . -f ckw.make
 
 clean:
+	@${MAKE} --no-print-directory -C . -f core.make clean
 	@${MAKE} --no-print-directory -C . -f ckwc.make clean
 	@${MAKE} --no-print-directory -C . -f ckw.make clean
 
@@ -34,6 +39,7 @@ help:
 	@echo "TARGETS:"
 	@echo "   all (default)"
 	@echo "   clean"
+	@echo "   core"
 	@echo "   ckwc"
 	@echo "   ckw"
 	@echo ""
