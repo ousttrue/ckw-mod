@@ -1,9 +1,4 @@
 /*-----------------------------------------------------------------------------
- * File: main.cpp
- *-----------------------------------------------------------------------------
- * Copyright (c) 2005       Kazuo Ishii <k-ishii@wb4.so-net.ne.jp>
- *				- original version
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -20,6 +15,8 @@
  *---------------------------------------------------------------------------*/
 #include "ckw.h"
 #include "app.h"
+#include "option.h"
+#include <memory>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -44,11 +41,11 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmd
 	_CrtSetReportFile( _CRT_ERROR,  _CRTDBG_FILE_STDERR );
 #endif
 
-    App app;
-    if(!app.initialize()){
-        // èâä˙âªé∏îs
+    ChildApp child;
+    if(!child.initialize()){
+        // ÂàùÊúüÂåñÂ§±Êïó
         return 1;
     }
-    return app.start();
+    return child.start();
 }
 

@@ -5,13 +5,63 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-
 class ckOpt;
 class Console;
-class App
+
+
+class BaseApp
+{
+public:
+    virtual ~BaseApp(){}
+
+    // ウインドプロシジャ
+    virtual LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)=0;
+
+    // main loop
+    int start();
+
+    static LRESULT CALLBACK WndProcProxy(
+            HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+private:
+    virtual bool create_window()=0;
+};
+
+
+///
+/// コンソール上に子プロセスを起動し、コンソールを隠す
+///
+class ChildApp: public BaseApp
 {
     std::shared_ptr<Console> m_console;
+
+    // window title
+    std::wstring gTitle;
+
+    // config
+    std::shared_ptr<ckOpt> m_opt;
+
+public:
+    ChildApp();
+    ~ChildApp();
+
+    bool initialize();
+
+    // ウインドプロシジャ
+    LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
+
+private:
+    bool create_window();
+};
+
+
+///
+/// ChildAppを起動し、メッセージをやり取りする
+///
+class App : public BaseApp
+{
+    // config
+    std::shared_ptr<ckOpt> m_opt;
 
     // font IME
     LOGFONT	gFontLog;	
@@ -28,9 +78,6 @@ class App
     // internal border
     DWORD	gBorderSize;
 
-    // window title
-    std::wstring gTitle;
-
     // index color
     std::vector<COLORREF> gColorTable;
 
@@ -45,29 +92,19 @@ class App
     // IME-status
     BOOL gImeOn;
 
-    // config
-    std::shared_ptr<ckOpt> m_opt;
-
 public:
     App();
-
     ~App();
     
     bool initialize();
     
-    // main loop
-    int start();
-
     // ウインドプロシジャ
     LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
-    static LRESULT CALLBACK WndProcProxy(
-            HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
     // 初期化
     bool create_window();
     bool create_font(const char* name, int height);
-    
     // イベントハンドラ
     void onSizing(HWND hWnd, DWORD side, LPRECT rc);
     void onPaint(HWND hWnd);
@@ -77,12 +114,12 @@ private:
     bool onSysCommand(HWND hWnd, DWORD id);
     bool onTopMostMenuCommand(HWND hWnd);
     bool onConfigMenuCommand(HWND hWnd, DWORD id);
-
+    // 描画
     void __draw_screen(HDC hDC);
     void __draw_invert_char_rect(HDC hDC, RECT& rc);
     void __draw_selection(HDC hDC);
+    // その他
     void __set_ime_position(HWND hWnd);
-
     COORD window_to_charpos(int x, int y);
     void applyConf();
     void reloadConfig(wchar_t *path);

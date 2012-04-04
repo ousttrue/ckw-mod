@@ -65,6 +65,39 @@ end
 configuration {}
 
 ------------------------------------------------------------------------------
+-- Child
+------------------------------------------------------------------------------
+project "ckwc"
+--language "C"
+language "C++"
+--kind "StaticLib"
+--kind "DynamicLib"
+--kind "ConsoleApp"
+kind "WindowedApp"
+flags {
+    "Unicode",
+}
+files {
+    "*.cpp", "*.h",
+}
+excludes {
+    "main.cpp",
+}
+defines {
+    "UNICODE",
+    "_UNICODE",
+    "_WIN32_WINNT=0x0500",
+}
+includedirs {
+}
+libdirs {
+}
+links {
+    'Shlwapi',
+}
+
+--[[
+------------------------------------------------------------------------------
 -- Project
 ------------------------------------------------------------------------------
 project "ckw"
@@ -92,4 +125,4 @@ libdirs {
 links {
     'Shlwapi',
 }
-
+--]]

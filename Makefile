@@ -6,18 +6,18 @@ ifndef config
 endif
 export config
 
-PROJECTS := ckw
+PROJECTS := ckwc
 
 .PHONY: all clean help $(PROJECTS)
 
 all: $(PROJECTS)
 
-ckw: 
-	@echo "==== Building ckw ($(config)) ===="
-	@${MAKE} --no-print-directory -C . -f ckw.make
+ckwc: 
+	@echo "==== Building ckwc ($(config)) ===="
+	@${MAKE} --no-print-directory -C . -f ckwc.make
 
 clean:
-	@${MAKE} --no-print-directory -C . -f ckw.make clean
+	@${MAKE} --no-print-directory -C . -f ckwc.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -29,6 +29,6 @@ help:
 	@echo "TARGETS:"
 	@echo "   all (default)"
 	@echo "   clean"
-	@echo "   ckw"
+	@echo "   ckwc"
 	@echo ""
 	@echo "For more information, see http://industriousone.com/premake/quick-start"
