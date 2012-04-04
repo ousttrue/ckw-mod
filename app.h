@@ -1,58 +1,12 @@
 #ifndef APP_H
 #define APP_H
 
-#include <windows.h>
+#include "baseapp.h"
+
 #include <memory>
 #include <string>
 #include <vector>
 class ckOpt;
-class Console;
-
-
-class BaseApp
-{
-public:
-    virtual ~BaseApp(){}
-
-    // ウインドプロシジャ
-    virtual LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)=0;
-
-    // main loop
-    int start();
-
-    static LRESULT CALLBACK WndProcProxy(
-            HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-private:
-    virtual bool create_window()=0;
-};
-
-
-///
-/// コンソール上に子プロセスを起動し、コンソールを隠す
-///
-class ChildApp: public BaseApp
-{
-    std::shared_ptr<Console> m_console;
-
-    // window title
-    std::wstring gTitle;
-
-    // config
-    std::shared_ptr<ckOpt> m_opt;
-
-public:
-    ChildApp();
-    ~ChildApp();
-
-    bool initialize();
-
-    // ウインドプロシジャ
-    LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
-
-private:
-    bool create_window();
-};
 
 
 ///
