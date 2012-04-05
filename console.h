@@ -5,7 +5,6 @@
 #include <memory>
 
 
-class ckOpt;
 class Console
 {
     HANDLE	gStdIn;	
@@ -36,7 +35,7 @@ public:
     Console();
     ~Console();
     void onDestroy();
-    bool initialize(std::shared_ptr<ckOpt> opt);
+    bool initialize();
     void __set_console_window_size(LONG cols, LONG rows);
     bool create_child_process(const char* cmd, const char* curdir);
     void __write_console_input(LPCWSTR str, DWORD length);

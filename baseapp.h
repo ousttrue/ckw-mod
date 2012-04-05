@@ -4,6 +4,12 @@
 #include <windows.h>
 
 
+enum EVENT_TYPE
+{
+    EVENT_INITIALIZED=WM_APP+1,
+};
+
+
 class BaseApp
 {
 public:

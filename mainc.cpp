@@ -15,7 +15,6 @@
  *---------------------------------------------------------------------------*/
 #include "ckw.h"
 #include "childapp.h"
-#include "option.h"
 #include <memory>
 
 #ifdef _DEBUG
@@ -41,11 +40,20 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmd
 	_CrtSetReportFile( _CRT_ERROR,  _CRTDBG_FILE_STDERR );
 #endif
 
-    ChildApp child;
-    if(!child.initialize()){
-        // 初期化失敗
+#ifdef _MSC_VER
+    HWND hParent=(HWND)_wtoi(lpCmdLine);
+#else
+    HWND hParent=(HWND)atoi(lpCmdLine);
+#endif
+    if(hParent==0){
         return 1;
     }
+
+    ChildApp child;
+    if(!child.initialize(hParent)){
+        return 2;
+    }
+
     return child.start();
 }
 

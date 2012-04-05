@@ -1,5 +1,5 @@
 #include "childapp.h"
-#include "option.h"
+#include "ckw.h"
 #include "console.h"
 #include "rsrc.h"
 #include <vector>
@@ -7,8 +7,9 @@
 
 ChildApp::ChildApp()
     :
-        m_console(new Console),
-        m_opt(new ckOpt)
+        m_hWnd(NULL),
+        m_hParent(NULL),
+        m_console(new Console)
 {
 }
 
@@ -16,24 +17,23 @@ ChildApp::~ChildApp()
 {
 }
 
-bool ChildApp::initialize()
+bool ChildApp::initialize(HWND hParent)
 {
-    if(! m_opt->initialize()) {
-        return false;
-    }
-
-    if(!m_console->initialize(m_opt)){
+    if(!m_console->initialize()){
         trace("create_console failed\n");
         return false;
     }
-    if(! m_console->create_child_process(m_opt->getCmd(), m_opt->getCurDir())) {
+    if(!m_console->create_child_process(NULL, NULL)) {
         trace("create_child_process failed\n");
         return false;
     }
-    if(! create_window()) {
+    if(!create_window()) {
         trace("create_window failed\n");
         return false;
     }
+
+    m_hParent=hParent;
+    SendMessage(m_hParent, EVENT_INITIALIZED, (WPARAM)m_hWnd, 0);
 
     return true;
 }
@@ -48,7 +48,7 @@ bool ChildApp::create_window()
     DWORD exstyle = WS_EX_ACCEPTFILES;
     LONG posx, posy;
 
-    const char* conf_title = m_opt->getTitle();
+    const char* conf_title = "ckwc";
     std::wstring title(L"ckw");
     if(conf_title && conf_title[0]){
         std::vector<wchar_t> buf(strlen(conf_title), 0);
@@ -85,14 +85,13 @@ bool ChildApp::create_window()
     if(! RegisterClassEx(&wc))
         return(FALSE);
 
-    HWND hWnd = CreateWindowEx(exstyle, className, title.c_str(), style,
+    m_hWnd = CreateWindowEx(exstyle, className, title.c_str(), style,
             posx, posy, width, height,
             NULL, NULL, hInstance, this);
-    if(!hWnd){
+    if(!m_hWnd){
         return(FALSE);
     }
 
-    //ShowWindow(hWnd, SW_SHOW);
     return(TRUE);
 }
 

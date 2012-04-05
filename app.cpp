@@ -3,15 +3,29 @@
 #include "option.h"
 #include "rsrc.h"
 #include <windows.h>
+#include <TlHelp32.h>
+#include <process.h>
 #include <string>
 #include <vector>
 #include <iostream>
 
 
+enum CHILD_STATUS
+{
+    CHILD_NONE,
+    CHILD_START,
+    CHILD_INITIALIZED,
+    CHILD_DEAD,
+};
+
 class Child
 {
+    HWND m_hWnd;
+    CHILD_STATUS m_status;
 public:
+
     Child()
+        : m_hWnd(0), m_status(CHILD_NONE)
     {
     }
 
@@ -19,13 +33,29 @@ public:
     {
     }
 
-    bool create_child_process()
+    void SetChildHWnd(HWND hWnd) { m_hWnd=hWnd; }
+
+    bool Create(HWND hWnd)
     {
+        trace("Create\n");
 
+        STARTUPINFOA si;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
 
+        PROCESS_INFORMATION pi;
+        char buf[1024];
+        sprintf(buf, "ckwc %d", hWnd);
+        if(!CreateProcessA(NULL, buf, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+            return false;
+        }
+		CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
         return true;
     }
 };
+
+
 
 
 INT_PTR CALLBACK AboutDlgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -65,6 +95,7 @@ INT_PTR CALLBACK AboutDlgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 App::App()
     :
         m_opt(new ckOpt),
+        m_hWnd(0),
         gBorderSize(0),
         gColorTable(kColorMax, 0),
         gBgBmp(NULL),
@@ -119,11 +150,11 @@ void sysmenu_init_topmost(HWND hWnd, HMENU hMenu)
 
 bool App::initialize()
 {
-    if(! ime_wrap_init()) {
+    if(!ime_wrap_init()) {
         trace("ime_wrap_init failed\n");
     }
 
-    if(! m_opt->initialize()) {
+    if(!m_opt->initialize()) {
         return false;
     }
 
@@ -134,13 +165,13 @@ bool App::initialize()
         return false;
     }
 
-    if(! create_window()) {
+    if(!create_window()) {
         trace("create_window failed\n");
         return false;
     }
 
-    if(!m_child->create_child_process()){
-        trace("create_child_process failed\n");
+    if(!m_child->Create(m_hWnd)){
+        trace("Create failed\n");
         return false;
     }
 
@@ -294,21 +325,22 @@ bool App::create_window()
     if(! RegisterClassEx(&wc))
         return(FALSE);
 
-    HWND hWnd = CreateWindowEx(exstyle, className, title.c_str(), style,
+    m_hWnd = CreateWindowEx(exstyle, className, title.c_str(), style,
             posx, posy, width, height,
             NULL, NULL, hInstance, this);
-    if(!hWnd){
+    if(!m_hWnd){
         return(FALSE);
     }
 
-    sysmenu_init(hWnd);
+    sysmenu_init(m_hWnd);
 
     if(0 < m_opt->getTransp() && m_opt->getTransp() < 255)
-        SetLayeredWindowAttributes(hWnd, 0, m_opt->getTransp(), LWA_ALPHA);
+        SetLayeredWindowAttributes(m_hWnd, 0, m_opt->getTransp(), LWA_ALPHA);
     else if(m_opt->isTranspColor())
-        SetLayeredWindowAttributes(hWnd, m_opt->getTranspColor(), 255, LWA_COLORKEY);
+        SetLayeredWindowAttributes(m_hWnd, m_opt->getTranspColor(), 255, LWA_COLORKEY);
 
-    ShowWindow(hWnd, SW_SHOW);
+    ShowWindow(m_hWnd, SW_SHOW);
+
     return(TRUE);
 }
 
@@ -620,6 +652,13 @@ void App::applyConf()
 LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch(msg) {
+        case EVENT_INITIALIZED:
+            {
+                HWND hChild=(HWND)wp;
+                SendMessage(hChild, WM_CLOSE, 0, 0);
+            }
+            break;
+
         case WM_CREATE:
             {
                 HIMC imc = ImmGetContext(hWnd);

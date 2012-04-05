@@ -4,7 +4,6 @@
 #include "baseapp.h"
 #include <memory>
 #include <string>
-class ckOpt;
 class Console;
 
 
@@ -13,19 +12,18 @@ class Console;
 ///
 class ChildApp: public BaseApp
 {
+    HWND m_hWnd;
+    HWND m_hParent;
     std::shared_ptr<Console> m_console;
 
     // window title
     std::wstring gTitle;
 
-    // config
-    std::shared_ptr<ckOpt> m_opt;
-
 public:
     ChildApp();
     ~ChildApp();
 
-    bool initialize();
+    bool initialize(HWND hParent);
 
     // ウインドプロシジャ
     LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);

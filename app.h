@@ -2,12 +2,12 @@
 #define APP_H
 
 #include "baseapp.h"
-
 #include <memory>
 #include <string>
 #include <vector>
 class ckOpt;
 class Child;
+
 
 ///
 /// ChildAppを起動し、メッセージをやり取りする
@@ -16,6 +16,8 @@ class App : public BaseApp
 {
     // config
     std::shared_ptr<ckOpt> m_opt;
+
+    HWND m_hWnd;
 
     // font IME
     LOGFONT	gFontLog;	
